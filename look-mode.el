@@ -323,16 +323,17 @@ the buffer."
 
 (defun look-update-header-line ()
   "defines the header line for look-mode"
-  (let ((look-header-line (lface-header
-                           (concat "["
-                                   (number-to-string (length look-reverse-file-list))
-                                   "| " 
-                                   (replace-regexp-in-string look-pwd "" look-current-file)
+  (let ((relfilename (replace-regexp-in-string look-pwd "" look-current-file))
+        (look-header-line (lface-header
+                          (concat "["
+                                  (number-to-string (length look-reverse-file-list))
+                                  "| " 
+                                  (substring relfilename (max (- 10 (frame-width))
+                                                              (- (length relfilename))))
                                    " |"
                                    (number-to-string (length look-forward-file-list)) "]"
                                    )))
-        (jj 1)
-        )
+        (jj 1))
     (if look-show-subdirs
         ; list all but the first item in look-subdir-list
         (while (< jj (length look-subdir-list))
