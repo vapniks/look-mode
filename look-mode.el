@@ -1,4 +1,5 @@
 ;;; look-mode.el --- quick file viewer for image and text file browsing
+;; Version: 20130824.1206
 
 ;;; Copyright (C) 2008,2009 Peter H. Mao
 
@@ -194,8 +195,7 @@ it to look-at-next-file"
                (catch 'skip-this-one 
                  (dolist (regexp look-skip-file-list t)
                    (if (string-match regexp lfl-item)
-                       (throw 'skip-this-one nil))))
-              )
+                       (throw 'skip-this-one nil)))))
           (setq look-forward-file-list
                 (nconc look-forward-file-list
                        (list (concat look-pwd lfl-item))))
@@ -204,8 +204,7 @@ it to look-at-next-file"
                  (catch 'skip-this-one 
                    (dolist (regexp look-skip-directory-list t)
                      (if (string-match regexp lfl-item)
-                         (throw 'skip-this-one nil))))
-                 )
+                         (throw 'skip-this-one nil)))))
             (if look-recurse-dirlist
                 (setq fullpath-dir-list
                       (nconc fullpath-dir-list
@@ -214,79 +213,73 @@ it to look-at-next-file"
                               (concat look-pwd lfl-item) look-skip-directory-list)))
               (setq fullpath-dir-list
                     (nconc fullpath-dir-list
-                           (list lfl-item))))
-          )))
+                           (list lfl-item)))))))
     ; now strip look-pwd off the subdirs in subdirlist    
     ; or maybe I should leave everything as full-path....
     (dolist (fullpath fullpath-dir-list look-subdir-list)
       (setq look-subdir-list
             (nconc look-subdir-list
                    (list (file-name-as-directory
-                          (replace-regexp-in-string look-pwd "" fullpath)))))
-      )
-    );tel
+                          (replace-regexp-in-string look-pwd "" fullpath)))))));tel
   (get-buffer-create look-buffer)
-  (look-at-next-file)
-  )
+  (look-at-next-file))
 
-(defun look-at-next-file ()
-  "gets the next file in the list.  Discards the file from the
-list if it is not a regular file or symlink to one."
-  (interactive); pass no args on interactive call
-  (kill-buffer look-buffer); clear the look-buffer
-  (switch-to-buffer look-buffer); reopen the look-buffer
-  (if look-current-file; if it is non-nil
-      (push look-current-file look-reverse-file-list)
-    )
-  (if look-forward-file-list
-      (progn
-        (setq look-current-file (pop look-forward-file-list))
-             ; get the next file in the list
-        (insert-file-contents look-current-file); insert it into the *look* buffer
-        (normal-mode); get the "normal mode" for this file
-        (if (eq major-mode default-major-mode)
-            (look-set-mode-with-auto-mode-alist t)
-          )
-        (look-update-header-line)
-        )
-    (look-no-more)
-    )
-  (look-mode); assert look mode
-  (if (and look-current-file (featurep 'eimp)
-           (string-match "[Jj][Pp][Ee]?[Gg]" 
-                         (or (file-name-extension look-current-file) "")))
-      (eimp-fit-image-to-window nil) ; scale to window if its a jpeg
-    )
-  )
-
-(defun look-at-previous-file ()
-  "gets the previous file in the list"
-  (interactive); pass no args on interactive call
-  (kill-buffer look-buffer); clear the look-buffer
-  (switch-to-buffer look-buffer); reopen the look-buffer
+(defun look-at-next-file (&optional arg)
+  "Gets the next file in the list.
+Discards the file from the list if it is not a regular file or symlink to one.
+With prefix arg get the ARG'th next file in the list."
+  (interactive "p")		    ; pass no args on interactive call
+  (kill-buffer look-buffer)	    ; clear the look-buffer
+  (switch-to-buffer look-buffer)    ; reopen the look-buffer
+  (dotimes (i (or arg 1))
+    (if (and look-current-file
+	     (or (eq i 0) look-forward-file-list))
+	(push look-current-file look-reverse-file-list))
+    (setq look-current-file (if look-forward-file-list
+				;; get the next file in the list
+				(pop look-forward-file-list))))
   (if look-current-file
-      (push look-current-file look-forward-file-list)
-    )
-  (if look-reverse-file-list
       (progn
-        (setq look-current-file (pop look-reverse-file-list))
-                                        ; get the next file in the list
+        (insert-file-contents look-current-file) ; insert it into the *look* buffer
+        (normal-mode)		 ; get the "normal mode" for this file
+        (if (eq major-mode default-major-mode)
+            (look-set-mode-with-auto-mode-alist t))
+        (look-update-header-line))
+    (look-no-more))
+  (look-mode)				; assert look mode
+  (if (and look-current-file (featurep 'eimp)
+           (string-match "[Jj][Pp][Ee]?[Gg]"
+                         (or (file-name-extension look-current-file) "")))
+      ;; scale to window if its a jpeg
+      (eimp-fit-image-to-window nil)))
+
+(defun look-at-previous-file (&optional arg)
+  "Gets the previous file in the list.
+With prefix arg get the ARG'th previous file in the list."
+  (interactive "p"); pass no args on interactive call
+  (kill-buffer look-buffer); clear the look-buffer
+  (switch-to-buffer look-buffer); reopen the look-buffer
+  (dotimes (i (or arg 1))
+    (if (and look-current-file
+	     (or (eq i 0) look-reverse-file-list))
+	(push look-current-file look-forward-file-list))
+    (setq look-current-file (if look-reverse-file-list
+				;; get the next file in the list
+				(pop look-reverse-file-list))))
+  (if look-current-file
+      (progn
         (insert-file-contents look-current-file) ; insert it into the *look* buffer
         (normal-mode)
         (if (eq major-mode default-major-mode)
-            (look-set-mode-with-auto-mode-alist t)
-          )
-        (look-update-header-line)
-        )
-    (look-no-more)
-    )
+            (look-set-mode-with-auto-mode-alist t))
+        (look-update-header-line))
+    (look-no-more))
   (look-mode); assert look mode
   (if (and look-current-file (featurep 'eimp)
-           (string-match "[Jj][Pp][Ee]?[Gg]" 
+           (string-match "[Jj][Pp][Ee]?[Gg]"
                          (or (file-name-extension look-current-file) "")))
-      (eimp-fit-image-to-window nil) ; scale to window if its a jpeg
-    )
-  )
+      ;; scale to window if its a jpeg
+      (eimp-fit-image-to-window nil)))
 
 (defun look-at-this-file ()
   "reloads current file in the buffer"
@@ -322,17 +315,18 @@ the buffer."
   (propertize text 'face '(:background "grey" :foreground "black" :weight bold)))
 
 (defun look-update-header-line ()
-  "defines the header line for look-mode"
-  (let ((look-header-line (lface-header
+  "Defines the header line for function `look-mode'."
+  (let* ((relfilename (replace-regexp-in-string look-pwd "" look-current-file))
+	 (look-header-line (lface-header
                            (concat "["
                                    (number-to-string (length look-reverse-file-list))
-                                   "| " 
-                                   (replace-regexp-in-string look-pwd "" look-current-file)
+                                   "| "
+                                   (substring relfilename (max (- 10 (frame-width))
+							       (- (length relfilename))))
                                    " |"
                                    (number-to-string (length look-forward-file-list)) "]"
                                    )))
-        (jj 1)
-        )
+        (jj 1))
     (if look-show-subdirs
         ; list all but the first item in look-subdir-list
         (while (< jj (length look-subdir-list))
