@@ -153,7 +153,7 @@ look-subdir-list"
             (define-key dired-mode-map "\M-l" 'look-at-files)))
 
 (defun look-reset-variables ()
-  "re-initializes look-mode's variables"
+  "Re-initializes look-mode's variables."
   (interactive)
   (setq look-forward-file-list nil)
   (setq look-reverse-file-list nil)
@@ -198,7 +198,8 @@ This function gets the file list by expanding LOOK-WILDCARD with
                        (throw 'skip-this-one nil)))))
           (setq look-forward-file-list
                 (nconc look-forward-file-list
-                       (list (concat look-pwd lfl-item))))
+                       (list (if (file-name-absolute-p lfl-item) lfl-item
+			       (concat look-pwd lfl-item)))))
         (if (and (file-directory-p lfl-item)
                  ; check if any regexps in skip list match directory
                  (catch 'skip-this-one
@@ -210,7 +211,9 @@ This function gets the file list by expanding LOOK-WILDCARD with
                       (nconc fullpath-dir-list
                              (list lfl-item)
                              (list-subdirectories-recursively
-                              (concat look-pwd lfl-item) look-skip-directory-list)))
+			      (if (file-name-absolute-p lfl-item) lfl-item
+				(concat look-pwd lfl-item))
+			      look-skip-directory-list)))
               (setq fullpath-dir-list
                     (nconc fullpath-dir-list
                            (list lfl-item)))))))
