@@ -167,9 +167,9 @@ look-subdir-list"
 ;;;; Navigation Commands
 
 (defun look-at-files (look-wildcard)
-  "Look at files in a directory.  Insert them into a temporary
-buffer one at a time.  This function gets the file list and passes
-it to look-at-next-file"
+  "Look at files in directory. Insert into temporary buffer one at a time.
+This function gets the file list by expanding LOOK-WILDCARD with
+ `file-expand-wildcards', and passes it to `look-at-next-file'."
   (interactive "sEnter filename (w/ wildcards): ")
   (if (and (string-match "[Jj][Pp][Ee]?[Gg]" look-wildcard)
            (not (featurep 'eimp)))
@@ -180,9 +180,9 @@ it to look-at-next-file"
   (setq look-subdir-list (list "./"));nil)
   (setq look-reverse-file-list nil)
   (setq look-current-file nil)
-  (setq look-pwd (replace-regexp-in-string 
+  (setq look-pwd (replace-regexp-in-string
                   "~" (getenv "HOME")
-                  (replace-regexp-in-string 
+                  (replace-regexp-in-string
                    "^Directory " "" (pwd))))
   (let ((look-file-list (file-expand-wildcards look-wildcard))
         (fullpath-dir-list nil))
@@ -192,7 +192,7 @@ it to look-at-next-file"
     (dolist (lfl-item look-file-list look-forward-file-list)
       (if (and (file-regular-p lfl-item)
                ; check if any regexps in skip list match filename
-               (catch 'skip-this-one 
+               (catch 'skip-this-one
                  (dolist (regexp look-skip-file-list t)
                    (if (string-match regexp lfl-item)
                        (throw 'skip-this-one nil)))))
@@ -201,7 +201,7 @@ it to look-at-next-file"
                        (list (concat look-pwd lfl-item))))
         (if (and (file-directory-p lfl-item)
                  ; check if any regexps in skip list match directory
-                 (catch 'skip-this-one 
+                 (catch 'skip-this-one
                    (dolist (regexp look-skip-directory-list t)
                      (if (string-match regexp lfl-item)
                          (throw 'skip-this-one nil)))))
@@ -214,7 +214,7 @@ it to look-at-next-file"
               (setq fullpath-dir-list
                     (nconc fullpath-dir-list
                            (list lfl-item)))))))
-    ; now strip look-pwd off the subdirs in subdirlist    
+    ; now strip look-pwd off the subdirs in subdirlist
     ; or maybe I should leave everything as full-path....
     (dolist (fullpath fullpath-dir-list look-subdir-list)
       (setq look-subdir-list
@@ -334,6 +334,15 @@ With 0 being the first file, and -1 being the last file,
 	(look-at-nth-file (+ (length look-reverse-file-list)
 			     (cl-position file look-forward-file-list :test 'equal)
 			     1)))))
+
+;; TODO - needs to be able to also search pdf/doc files if possible
+;; (defun look-search-forward nil
+;;   "Search forward through looked at files."
+;;   )
+
+;; (defun look-search-backward nil
+;;   "Search backward through looked at files."  
+;;   )
 
 (defun look-at-this-file ()
   "reloads current file in the buffer"
