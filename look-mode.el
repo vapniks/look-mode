@@ -325,9 +325,8 @@ With 0 being the first file, and -1 being the last file,
   (if (and look-current-file (featurep 'eimp)
            (string-match "[Jj][Pp][Ee]?[Gg]" 
                          (or (file-name-extension look-current-file) "")))
-      (eimp-fit-image-to-window nil) ; scale to window if its a jpeg
-    )
-  )
+      ;; scale to window if its a jpeg
+      (eimp-fit-image-to-window nil)))
 
 ;;;; subroutines
 
@@ -352,8 +351,7 @@ the buffer."
                                    (substring relfilename (max (- 10 (frame-width))
 							       (- (length relfilename))))
                                    " |"
-                                   (number-to-string (length look-forward-file-list)) "]"
-                                   )))
+                                   (number-to-string (length look-forward-file-list)) "]")))
         (jj 1))
     (if look-show-subdirs
         ; list all but the first item in look-subdir-list
@@ -367,25 +365,21 @@ the buffer."
                             (lface-hilite (number-to-string jj))
                           (lface-number (number-to-string jj)))
                         (lface-header (replace-regexp-in-string ;remove trailing '/'
-                                       "/$" "" (nth jj look-subdir-list)))
-                        ))
-          (setq jj (1+ jj))
-          )
-      )
+                                       "/$" "" (nth jj look-subdir-list)))))
+          (setq jj (1+ jj))))
     (overlay-put look-header-overlay 'before-string (concat look-header-line
                                                             (lface-header "\n")))
     (move-overlay look-header-overlay (window-start) (window-start) (get-buffer look-buffer))
-    (add-hook 'window-scroll-functions 'look-keep-header-on-top nil t)
-    ))
+    (add-hook 'window-scroll-functions 'look-keep-header-on-top nil t)))
   
 (defun look-no-more ()
   "what to do when one gets to the end of a file list"
   (setq look-current-file nil)
   (if look-forward-file-list
-      (setq header-line-format "No more files to display.  Use look-at-next-file (M-n or C-.[think:>]) to go forward")
-    (setq header-line-format "No more files to display.  Use look-at-previous-file (M-p or C-,[think:<]) to go back")
-    )
-)  
+      (setq header-line-format
+	    "No more files to display.  Use look-at-next-file (M-n or C-.[think:>]) to go forward")
+    (setq header-line-format
+	  "No more files to display.  Use look-at-previous-file (M-p or C-,[think:<]) to go back")))
 
 (defun look-set-mode-with-auto-mode-alist (&optional keep-mode-if-same)
   "Taken shamelessly from set-auto-mode in files.el.
@@ -427,8 +421,7 @@ Uses the look-current-file to set the mode using auto-mode-alist"
         (setq name))
       (when mode
         (set-auto-mode-0 mode keep-mode-if-same)
-        (setq done t))))
-  )
+        (setq done t)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Generally useful, but here for now ;;;
@@ -446,16 +439,12 @@ excluding directory names that match exclusion-list"
                (not (catch 'found-one
                       (dolist (exclude-regexp exclusion-list nil)
                         (if (string-match exclude-regexp (file-name-nondirectory lsr-dir))
-                            (throw 'found-one t)))))
-               )
+                            (throw 'found-one t))))))
           (setq recursive-dir-list
                 (nconc recursive-dir-list
                        (list lsr-dir)
-                       (list-subdirectories-recursively lsr-dir exclusion-list)))
-        ) ) 
-    recursive-dir-list
-    )
-  )
+                       (list-subdirectories-recursively lsr-dir exclusion-list))))) 
+    recursive-dir-list))
 
 (provide 'look-mode)
 
