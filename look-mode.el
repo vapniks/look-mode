@@ -135,6 +135,7 @@ look-subdir-list"
     (define-key map (kbd "M-p") 'look-at-previous-file)
     (define-key map (kbd "M-#") 'look-at-nth-file)
     (define-key map (kbd "M-/") 'look-at-specific-file)
+    (define-key map (kbd "M-k") 'look-remove-this-file)
     (define-key map (kbd "C-c l")
       (lambda () (interactive)
         (customize-group 'look)))
@@ -279,6 +280,31 @@ With prefix arg get the ARG'th previous file in the list."
                          (or (file-name-extension look-current-file) "")))
       ;; scale to window if its a jpeg
       (eimp-fit-image-to-window nil)))
+
+(defun look-remove-this-file nil
+  "Remove the currently looked at file from the list."
+  (interactive)
+  (unless (not (y-or-n-p "Remove current file?"))
+    (kill-buffer look-buffer)		; clear the look-buffer
+    (switch-to-buffer look-buffer)	; reopen the look-buffer
+    (setq look-current-file (if look-reverse-file-list ;remove the current file
+				(pop look-reverse-file-list)
+			      (if look-forward-file-list
+				  (pop look-reverse-file-list))))
+    (if look-current-file
+	(progn
+	  (insert-file-contents look-current-file) ; insert it into the *look* buffer
+	  (normal-mode)
+	  (if (eq major-mode default-major-mode)
+	      (look-set-mode-with-auto-mode-alist t))
+	  (look-update-header-line))
+      (look-no-more))
+    (look-mode)				; assert look mode
+    (if (and look-current-file (featurep 'eimp)
+	     (string-match "[Jj][Pp][Ee]?[Gg]"
+			   (or (file-name-extension look-current-file) "")))
+	;; scale to window if its a jpeg
+	(eimp-fit-image-to-window nil))))
 
 (defun look-at-nth-file (n)
   "Look at the N'th file in the list.
