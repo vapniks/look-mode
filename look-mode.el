@@ -134,6 +134,7 @@ look-subdir-list"
     (define-key map (kbd "M-n") 'look-at-next-file)
     (define-key map (kbd "M-p") 'look-at-previous-file)
     (define-key map (kbd "M-#") 'look-at-nth-file)
+    (define-key map (kbd "M-/") 'look-at-specific-file)
     (define-key map (kbd "C-c l")
       (lambda () (interactive)
         (customize-group 'look)))
@@ -294,6 +295,19 @@ With 0 being the first file, and -1 being the last file,
 	  ((>= n 0) (look-at-previous-file (- nback n)))
 	  ((< n (- (+ 1 nback nforward))) (error "N too small"))
 	  (t (look-at-nth-file (+ n 1 nback nforward))))))
+
+(defun look-at-specific-file (file)
+  "Jump to a specific FILE in the `look-mode' list."
+  (interactive (list (ido-completing-read
+		      "File: "
+		      (append look-reverse-file-list look-forward-file-list)
+		      nil t)))
+  (if (member file look-reverse-file-list)
+      (look-at-nth-file (cl-position file look-reverse-file-list :test 'equal))
+    (if (member file look-forward-file-list)
+	(look-at-nth-file (+ (length look-reverse-file-list)
+			     (cl-position file look-forward-file-list :test 'equal)
+			     1)))))
 
 (defun look-at-this-file ()
   "reloads current file in the buffer"
