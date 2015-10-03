@@ -133,6 +133,7 @@ look-subdir-list"
 ;    (define-key map (kbd "M-[") 'look-at-previous-file)
     (define-key map (kbd "M-n") 'look-at-next-file)
     (define-key map (kbd "M-p") 'look-at-previous-file)
+    (define-key map (kbd "M-#") 'look-at-nth-file)
     (define-key map (kbd "C-c l")
       (lambda () (interactive)
         (customize-group 'look)))
@@ -143,13 +144,11 @@ look-subdir-list"
   "a minor mode for flipping through files"
   :init-value nil ; maybe make this t?
   :lighter " Look"
-  :keymap look-minor-mode-map
-  )
+  :keymap look-minor-mode-map)
 
 (add-hook 'dired-mode-hook
           (lambda ()
-            (define-key dired-mode-map "\M-l" 'look-at-files)
-            ))
+            (define-key dired-mode-map "\M-l" 'look-at-files)))
 
 (defun look-reset-variables ()
   "re-initializes look-mode's variables"
@@ -161,8 +160,7 @@ look-subdir-list"
   (setq look-skip-directory-list nil)
   (setq look-show-subdirs nil)
   (setq look-current-file nil)
-  (setq look-buffer "*look*")
-)
+  (setq look-buffer "*look*"))
 
 ;;;; Navigation Commands
 
@@ -280,6 +278,22 @@ With prefix arg get the ARG'th previous file in the list."
                          (or (file-name-extension look-current-file) "")))
       ;; scale to window if its a jpeg
       (eimp-fit-image-to-window nil)))
+
+(defun look-at-nth-file (n)
+  "Look at the N'th file in the list.
+If N is negative count backwards from the end of the list.
+With 0 being the first file, and -1 being the last file,
+-2 the second last file, etc."
+  (interactive (list (or current-prefix-arg
+			 (read-number "Position in list (-ve No.s count backwards from end): "))))
+  (let ((nback (length look-reverse-file-list))
+	(nforward (length look-forward-file-list)))
+    (cond ((not (integerp n)) (error "N must be an integer"))
+	  ((> n (+ nback nforward)) (error "N too large"))
+	  ((>= n nback) (look-at-next-file (- n nback)))
+	  ((>= n 0) (look-at-previous-file (- nback n)))
+	  ((< n (- (+ 1 nback nforward))) (error "N too small"))
+	  (t (look-at-nth-file (+ n 1 nback nforward))))))
 
 (defun look-at-this-file ()
   "reloads current file in the buffer"
