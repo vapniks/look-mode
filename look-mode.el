@@ -136,6 +136,8 @@ look-subdir-list"
     (define-key map (kbd "M-#") 'look-at-nth-file)
     (define-key map (kbd "M-/") 'look-at-specific-file)
     (define-key map (kbd "M-k") 'look-remove-this-file)
+    (define-key map (kbd "M-s") 'look-re-search-forward)
+    (define-key map (kbd "M-r") 'look-re-search-backward)
     (define-key map (kbd "C-c l")
       (lambda () (interactive)
         (customize-group 'look)))
@@ -338,14 +340,25 @@ With 0 being the first file, and -1 being the last file,
 			     (cl-position file look-forward-file-list :test 'equal)
 			     1)))))
 
-;; TODO - needs to be able to also search pdf/doc files if possible
-;; (defun look-search-forward nil
-;;   "Search forward through looked at files."
-;;   )
+(defun look-re-search-forward (str)
+  "Search forward through looked at files."
+  (interactive (list (read-regexp "Regexp: ")))
+  (while (and look-current-file
+	      (not (case major-mode
+		     (pdf-view-mode (pdf-isearch-search-function str))
+		     (doc-view-mode (doc-view-search str))
+		     (t (search-forward str nil t)))))
+    (look-at-next-file)))
 
-;; (defun look-search-backward nil
-;;   "Search backward through looked at files."  
-;;   )
+(defun look-re-search-backward (str)
+  "Search backward through looked at files."
+  (interactive (list (read-regexp "Regexp: ")))
+  (while (and look-current-file
+	      (not (case major-mode
+		     (pdf-view-mode (pdf-isearch-search-function str))
+		     (doc-view-mode (doc-view-search str t))
+		     (t (search-backward str nil t)))))
+    (look-at-next-file)))
 
 (defun look-at-this-file ()
   "reloads current file in the buffer"
