@@ -243,6 +243,7 @@ With prefix arg get the ARG'th next file in the list."
     (setq look-current-file (if look-forward-file-list
 				;; get the next file in the list
 				(pop look-forward-file-list))))
+  (setq buffer-file-name look-current-file)
   (if look-current-file
       (progn
         (insert-file-contents look-current-file) ; insert it into the *look* buffer
@@ -271,6 +272,7 @@ With prefix arg get the ARG'th previous file in the list."
     (setq look-current-file (if look-reverse-file-list
 				;; get the next file in the list
 				(pop look-reverse-file-list))))
+  (setq buffer-file-name look-current-file)
   (if look-current-file
       (progn
         (insert-file-contents look-current-file) ; insert it into the *look* buffer
