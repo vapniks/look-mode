@@ -237,6 +237,8 @@ This function gets the file list by expanding LOOK-WILDCARD with
 Discards the file from the list if it is not a regular file or symlink to one.
 With prefix arg get the ARG'th next file in the list."
   (interactive "p")		    ; pass no args on interactive call
+  (if (memq major-mode '(doc-view-mode pdf-view-mode image-mode))
+      (set-buffer-modified-p nil))
   (kill-buffer look-buffer)	    ; clear the look-buffer
   (switch-to-buffer look-buffer)    ; reopen the look-buffer
   (dotimes (i (or arg 1))
@@ -266,6 +268,8 @@ With prefix arg get the ARG'th next file in the list."
   "Gets the previous file in the list.
 With prefix arg get the ARG'th previous file in the list."
   (interactive "p"); pass no args on interactive call
+  (if (memq major-mode '(doc-view-mode pdf-view-mode image-mode))
+      (set-buffer-modified-p nil))
   (kill-buffer look-buffer); clear the look-buffer
   (switch-to-buffer look-buffer); reopen the look-buffer
   (dotimes (i (or arg 1))
