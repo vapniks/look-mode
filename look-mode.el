@@ -435,6 +435,22 @@ METHOD can be the symbol 'name (sort names alphabetically),
 				    (if look-reverse-file-list files))))
     (look-update-header-line)))
 
+(defun look-move-current-file (pos)
+  "Move currently looked at file to position POS in list."
+  (interactive (list (let* ((max (+ (length look-reverse-file-list)
+				    (length look-forward-file-list)))
+			    (msg (format "New position (between 0 & %d): " max))
+			    (pos (read-number msg)))
+		       (while (or (< pos 0) (> pos max))
+			 (setq pos (read-number msg)))
+		       pos)))
+  (let ((files (append (reverse look-reverse-file-list)
+		       look-forward-file-list)))
+    (setq look-forward-file-list (cl-subseq files pos)
+	  look-reverse-file-list (reverse (cl-subseq files 0 pos)))
+    (look-update-header-line)))
+  )
+
 ;;;; subroutines
 
 (defun look-keep-header-on-top (window start)
