@@ -440,13 +440,9 @@ METHOD can be the symbol 'name (sort names alphabetically),
 
 (defun look-move-current-file (pos)
   "Move currently looked at file to position POS in list."
-  (interactive (list (let* ((max (+ (length look-reverse-file-list)
-				    (length look-forward-file-list)))
-			    (msg (format "Move to position (-ve No.s count backwards from end): " max))
-			    (pos (read-number msg)))
-		       (while (or (< pos 0) (> pos max))
-			 (setq pos (read-number msg)))
-		       pos)))
+  (interactive (list
+		(read-number
+		 "Move to position (-ve No.s count backwards from end): ")))
   (let ((files (append (reverse look-reverse-file-list)
 		       look-forward-file-list))
 	(nback (length look-reverse-file-list))
