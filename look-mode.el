@@ -319,7 +319,7 @@ If N is negative count backwards from the end of the list.
 With 0 being the first file, and -1 being the last file,
 -2 the second last file, etc."
   (interactive (list (or current-prefix-arg
-			 (read-number "Position in list (-ve No.s count backwards from end): "))))
+			 (read-number "Goto position in list (-ve No.s count backwards from end): "))))
   (let ((nback (length look-reverse-file-list))
 	(nforward (length look-forward-file-list)))
     (cond ((not (integerp n)) (error "N must be an integer"))
