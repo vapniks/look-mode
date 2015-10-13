@@ -452,7 +452,6 @@ METHOD can be the symbol 'name (sort names alphabetically),
     (setq look-forward-file-list (cl-subseq files pos)
 	  look-reverse-file-list (reverse (cl-subseq files 0 pos)))
     (look-update-header-line)))
-  )
 
 ;;;; subroutines
 
