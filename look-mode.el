@@ -363,12 +363,12 @@ With 0 being the first file, and -1 being the last file,
     (look-at-next-file)))
 
 (defun look-at-this-file ()
-  "reloads current file in the buffer"
+  "Reloads current file in the buffer."
   (interactive); pass no args on interactive call
   (kill-buffer look-buffer); clear the look-buffer
   (switch-to-buffer look-buffer); reopen the look-buffer
   (if look-current-file
-      (progn 
+      (progn
         (insert-file-contents look-current-file) ; insert it into the *look* buffer
         (if (eq major-mode default-major-mode)
             (look-set-mode-with-auto-mode-alist t))
@@ -376,10 +376,64 @@ With 0 being the first file, and -1 being the last file,
     (look-no-more))
   (look-mode); assert look mode
   (if (and look-current-file (featurep 'eimp)
-           (string-match "[Jj][Pp][Ee]?[Gg]" 
+           (string-match "[Jj][Pp][Ee]?[Gg]"
                          (or (file-name-extension look-current-file) "")))
       ;; scale to window if its a jpeg
       (eimp-fit-image-to-window nil)))
+
+(defun look-sort-files (method)
+  "Sort the looked at files.
+METHOD can be the symbol 'name (sort names alphabetically),
+ 'age (sort by last modified time), 'size (sort by size in bytes),
+ or a predicate function that can be used by `sort' (which see)."
+  (interactive (list (let ((input (ido-completing-read
+				   "Sort by: "
+				   '("name" "age" "size" "other") nil nil)))
+		       (cond ((equal input "name") 'name)
+			     ((equal input "age") 'age)
+			     ((equal input "size") 'size)
+			     ((equal input "other")
+			      (read-from-minibuffer
+			       "Predicate function: " nil nil t))))))
+  (let* ((allfiles (append (reverse look-reverse-file-list)
+			   (if look-current-file
+			       (list look-current-file))
+			   look-forward-file-list))
+	 (sortedfiles
+	  (sort allfiles
+		(case method
+		  (name 'string-lessp)
+		  (age (lambda (a b)
+			 (time-less-p (fifth (file-attributes a))
+				      (fifth (file-attributes b)))))
+		  (size (lambda (a b)
+			  (<= (eighth (file-attributes a))
+			      (eighth (file-attributes b)))))
+		  (t method))))
+	 (pos (if look-current-file
+		  (cl-position look-current-file sortedfiles
+			       :test 'equal))))
+    (setq look-forward-file-list (if pos (cl-subseq sortedfiles (1+ pos))
+				   (if look-forward-file-list sortedfiles))
+	  look-reverse-file-list (reverse
+				  (if pos (cl-subseq sortedfiles 0 pos)
+				    (if look-reverse-file-list sortedfiles))))
+    (look-update-header-line)))
+
+(defun look-reverse-files nil
+  "Reverse the order of the looked at files."
+  (interactive)
+  (let* ((files (reverse (append (reverse look-reverse-file-list)
+				 (if look-current-file (list look-current-file))
+				 look-forward-file-list)))
+	 (pos (if look-current-file
+		  (cl-position look-current-file files :test 'equal))))
+    (setq look-forward-file-list (if pos (cl-subseq files (1+ pos))
+				   (if look-forward-file-list files))
+	  look-reverse-file-list (reverse
+				  (if pos (cl-subseq files 0 pos)
+				    (if look-reverse-file-list files))))
+    (look-update-header-line)))
 
 ;;;; subroutines
 
