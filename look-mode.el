@@ -138,6 +138,9 @@ look-subdir-list"
     (define-key map (kbd "M-k") 'look-remove-this-file)
     (define-key map (kbd "M-s") 'look-re-search-forward)
     (define-key map (kbd "M-r") 'look-re-search-backward)
+    (define-key map (kbd "M-^") 'look-sort-files)
+    (define-key map (kbd "M-R") 'look-reverse-files)
+    (define-key map (kbd "M-~") 'look-move-current-file)
     (define-key map (kbd "C-c l")
       (lambda () (interactive)
         (customize-group 'look)))
@@ -439,7 +442,7 @@ METHOD can be the symbol 'name (sort names alphabetically),
   "Move currently looked at file to position POS in list."
   (interactive (list (let* ((max (+ (length look-reverse-file-list)
 				    (length look-forward-file-list)))
-			    (msg (format "New position (between 0 & %d): " max))
+			    (msg (format "Move to position (between 0 & %d): " max))
 			    (pos (read-number msg)))
 		       (while (or (< pos 0) (> pos max))
 			 (setq pos (read-number msg)))
