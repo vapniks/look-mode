@@ -188,6 +188,7 @@ page number etc, and will be evaluated when the file is visited again."
   (setq look-skip-directory-list nil)
   (setq look-show-subdirs nil)
   (setq look-current-file nil)
+  (setq look-extra-info nil)
   (setq look-buffer "*look*"))
 
 ;;;; Navigation Commands
