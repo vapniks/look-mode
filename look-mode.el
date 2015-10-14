@@ -141,9 +141,7 @@ look-subdir-list"
     (define-key map (kbd "M-^") 'look-sort-files)
     (define-key map (kbd "M-R") 'look-reverse-files)
     (define-key map (kbd "M-~") 'look-move-current-file)
-    (define-key map (kbd "C-c l")
-      (lambda () (interactive)
-        (customize-group 'look)))
+    (define-key map (kbd "C-c l") (lambda () (interactive) (customize-group 'look)))
     map)
   "Keymap for Look mode.")
 
