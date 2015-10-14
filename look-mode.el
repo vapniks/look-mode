@@ -114,7 +114,9 @@
 			     (set-window-hscroll nil ,(window-hscroll))))
     (image-mode . `(let ((size ',(image-size (eimp-get-image) t)))
 		     (eimp-mogrify-image
-		      (list "-resize" (format "%dx%d!" (car size) (cdr size)))))))
+		      (list "-resize" (format "%dx%d!" (car size) (cdr size))))
+		     (image-next-line ,(window-vscroll))
+		     (set-window-hscroll nil ,(window-hscroll)))))
   "Extra information used by `look-setup-buffer' to display files.
 This is a alist whose keys are `major-mode' symbols, and whose
 values are sexps to be evaluated in the `look-buffer' for saving
