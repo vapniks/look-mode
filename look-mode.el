@@ -246,7 +246,6 @@ With prefix arg get the ARG'th next file in the list."
     (setq look-current-file (if look-forward-file-list
 				;; get the next file in the list
 				(pop look-forward-file-list))))
-  (setq buffer-file-name look-current-file)
   (look-setup-buffer look-current-file)
   (look-adjust-file))
 
@@ -265,7 +264,6 @@ With prefix arg get the ARG'th previous file in the list."
     (setq look-current-file (if look-reverse-file-list
 				;; get the next file in the list
 				(pop look-reverse-file-list))))
-  (setq buffer-file-name look-current-file)
   (look-setup-buffer look-current-file)
   (look-adjust-file))
 
@@ -282,6 +280,25 @@ With prefix arg get the ARG'th previous file in the list."
     (look-setup-buffer look-current-file)
     (look-adjust-file)))
 
+(defun look-insert-file (file)
+  "Insert FILE into the list of looked at files.
+File will be inserted in front of current position,
+and will become the new currently looked at file."
+  (interactive (list (ido-read-file-name
+		      "File: "
+		      (if look-current-file
+			  (file-name-directory look-current-file)))))
+  (if (memq major-mode '(doc-view-mode pdf-view-mode image-mode))
+      (set-buffer-modified-p nil))
+  (kill-buffer look-buffer)
+  (switch-to-buffer look-buffer)
+  (setq look-reverse-file-list
+	(cons look-current-file
+	      look-reverse-file-list)
+	look-current-file file)
+  (look-setup-buffer look-current-file)
+  (look-adjust-file))
+  
 (defun look-at-nth-file (n)
   "Look at the N'th file in the list.
 If N is negative count backwards from the end of the list.
@@ -422,6 +439,7 @@ METHOD can be the symbol 'name (sort names alphabetically),
   (if file
       (progn
 	(insert-file-contents file) ; insert it into the *look* buffer
+	(setq buffer-file-name file)
 	(normal-mode)
 	(if (eq major-mode (default-value 'major-mode))
 	    (look-set-mode-with-auto-mode-alist t))
@@ -489,8 +507,8 @@ the buffer."
 	  "No more files to display.  Use look-at-previous-file (M-p or C-,[think:<]) to go back")))
 
 (defun look-set-mode-with-auto-mode-alist (&optional keep-mode-if-same)
-  "Taken shamelessly from set-auto-mode in files.el.
-Uses the look-current-file to set the mode using auto-mode-alist"
+  "Taken shamelessly from `set-auto-mode' in files.el (which see).
+Uses the `look-current-file' to set the mode using `auto-mode-alist'."
   (let ((name look-current-file)
         (remote-id (file-remote-p look-current-file))
         done
