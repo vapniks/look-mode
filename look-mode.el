@@ -271,12 +271,15 @@ With prefix arg get the ARG'th previous file in the list."
   "Remove the currently looked at file from the list."
   (interactive)
   (unless (not (y-or-n-p "Remove current file? "))
+    (if (memq major-mode '(doc-view-mode pdf-view-mode image-mode))
+	(set-buffer-modified-p nil))
     (kill-buffer look-buffer)		; clear the look-buffer
     (switch-to-buffer look-buffer)	; reopen the look-buffer
-    (setq look-current-file (if look-reverse-file-list ;remove the current file
-				(pop look-reverse-file-list)
-			      (if look-forward-file-list
-				  (pop look-reverse-file-list))))
+    (setq look-current-file
+	  (if look-reverse-file-list	;remove the current file
+	      (pop look-reverse-file-list)
+	    (if look-forward-file-list
+		(pop look-reverse-file-list))))
     (look-setup-buffer look-current-file)
     (look-adjust-file)))
 
