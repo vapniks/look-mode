@@ -252,7 +252,13 @@ With prefix arg get the ARG'th next file in the list."
   (if look-current-file
       (progn
         (insert-file-contents look-current-file) ; insert it into the *look* buffer
-        (normal-mode)		 ; get the "normal mode" for this file
+	(normal-mode)		 ; get the "normal mode" for this file
+        ;; (setq doc-view-image-width 850
+	;;       pdf-view-display-size 'fit-height)
+	;; (if (eq major-mode 'pdf-view-mode)
+	;;     (pdf-view-redisplay t)
+	;;   (if (eq major-mode 'doc-view-mode)
+	;;       nil))
         (if (eq major-mode default-major-mode)
             (look-set-mode-with-auto-mode-alist t))
         (look-update-header-line))
@@ -465,6 +471,14 @@ METHOD can be the symbol 'name (sort names alphabetically),
     (look-update-header-line)))
 
 ;;;; subroutines
+
+(defun look-adjust-file nil
+  "Make adjustments to currently looked at file."
+  (if (and look-current-file
+	   (featurep 'eimp)
+	   (eq major-mode 'image-mode))
+      ;; scale to window if its a jpeg
+      (eimp-fit-image-to-window nil)))
 
 (defun look-keep-header-on-top (window start)
   "Used by look-update-header-line to keep overlay at the top of
