@@ -83,48 +83,45 @@
 
 ;; Customizations
 (defgroup look nil
-  "View files in a temporary, writeable buffer"
+  "View files in a temporary, writeable buffer."
   :prefix "look-"
   :group 'applications)
 (defcustom look-skip-file-list '(".zip$")
-  "list of regular filename regexps to skip over"
+  "List of regular filename regexps to skip over."
   :group 'look
   :type '(repeat regexp))
 (defcustom look-skip-directory-list nil
-  "list of directory name regexps to skip over"
+  "List of directory name regexps to skip over."
   :group 'look
   :type '(repeat regexp))
 (defcustom look-show-subdirs nil
-  "'t' means show subdirectories on the header line"
+  "'t' means show subdirectories on the header line."
   :group 'look
   :type 'boolean)
 (defcustom look-recurse-dirlist t
-  "incorporate all subdirectories of matching directories into
-look-subdir-list"
+  "Incorporate all subdirectories of matching directories into `look-subdir-list'."
   :group 'look
   :type 'boolean)
 
 ;; Variables that make the code work
 (defvar look-forward-file-list nil
-  "list of files stored by the command look-at-files for future
-  viewing")
+  "List of files stored by the command look-at-files for future viewing.")
 (defvar look-reverse-file-list nil
-  "list of files stored by the command look-at-files for reverse
-  lookup")
+  "List of files stored by the command look-at-files for reverse lookup.")
 (defvar look-subdir-list nil
-  "subdirectories found in the file listing")
+  "Subdirectories found in the file listing.")
 (defvar look-hilight-subdir-index 1
-  "subdirectory index to hilight")
+  "Subdirectory index to hilight.")
 (defvar look-current-file nil
-  "the file being viewed in the look-buffer")
+  "The file being viewed in the `look-buffer'.")
 (defvar look-pwd nil
-  "the directory that look started in")
+  "The directory that look started in.")
 (defvar look-buffer "*look*"
-  "default buffer for look mode")
+  "Default buffer for look mode.")
 ;;overlay code suggested by Martin Rudalics
 ;;http://lists.gnu.org/archive/html/bug-gnu-emacs/2008-12/msg00195.html
 (defvar look-header-overlay (make-overlay (point-min) (point-min))
-  "makes overlay at top of buffer")
+  "Makes overlay at top of buffer.")
 (defvar look-minor-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "C-.") 'look-at-next-file)
@@ -146,7 +143,7 @@ look-subdir-list"
   "Keymap for Look mode.")
 
 (define-minor-mode look-mode
-  "a minor mode for flipping through files"
+  "A minor mode for flipping through files."
   :init-value nil ; maybe make this t?
   :lighter " Look"
   :keymap look-minor-mode-map)
@@ -331,24 +328,24 @@ With 0 being the first file, and -1 being the last file,
 			     (cl-position file look-forward-file-list :test 'equal)
 			     1)))))
 
-(defun look-re-search-forward (str)
-  "Search forward through looked at files."
+(defun look-re-search-forward (regex)
+  "Search forward through looked at files for REGEX."
   (interactive (list (read-regexp "Regexp: ")))
   (while (and look-current-file
 	      (not (case major-mode
-		     (pdf-view-mode (pdf-isearch-search-function str))
-		     (doc-view-mode (doc-view-search str))
-		     (t (search-forward str nil t)))))
+		     (pdf-view-mode (pdf-isearch-search-function regex))
+		     (doc-view-mode (doc-view-search regex))
+		     (t (search-forward regex nil t)))))
     (look-at-next-file)))
 
-(defun look-re-search-backward (str)
-  "Search backward through looked at files."
+(defun look-re-search-backward (regex)
+  "Search backward through looked at files for REGEX."
   (interactive (list (read-regexp "Regexp: ")))
   (while (and look-current-file
 	      (not (case major-mode
-		     (pdf-view-mode (pdf-isearch-search-function str))
-		     (doc-view-mode (doc-view-search str t))
-		     (t (search-backward str nil t)))))
+		     (pdf-view-mode (pdf-isearch-search-function regex))
+		     (doc-view-mode (doc-view-search regex t))
+		     (t (search-backward regex nil t)))))
     (look-at-next-file)))
 
 (defun look-at-this-file ()
@@ -459,9 +456,10 @@ METHOD can be the symbol 'name (sort names alphabetically),
       (eimp-fit-image-to-window nil)))
 
 (defun look-keep-header-on-top (window start)
-  "Used by look-update-header-line to keep overlay at the top of
-the buffer."
+  "Used by `look-update-header-line' to keep overlay at top of buffer.
+Argument WINDOW not used.  Argument START is the start position."
   (move-overlay look-header-overlay start start))
+
 (defun lface-header (text)
   (propertize text 'face 'header-line))
 (defun lface-hilite (text)
@@ -469,7 +467,7 @@ the buffer."
 (defun lface-number (text)
   (propertize text 'face '(:background "grey" :foreground "black" :weight bold)))
 
-(defun look-update-header-line ()
+(defun look-update-header-line nil
   "Defines the header line for function `look-mode'."
   (let* ((relfilename (replace-regexp-in-string look-pwd "" look-current-file))
 	 (look-header-line (lface-header
@@ -500,8 +498,8 @@ the buffer."
     (move-overlay look-header-overlay (window-start) (window-start) (get-buffer look-buffer))
     (add-hook 'window-scroll-functions 'look-keep-header-on-top nil t)))
   
-(defun look-no-more ()
-  "what to do when one gets to the end of a file list"
+(defun look-no-more nil
+  "What to do when one gets to the end of a file list."
   (setq look-current-file nil)
   (if look-forward-file-list
       (setq header-line-format
@@ -555,8 +553,8 @@ Uses the `look-current-file' to set the mode using `auto-mode-alist'."
 ;;; Generally useful, but here for now ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (defun list-subdirectories-recursively (&optional head-dir exclusion-list)
-  "recursively list directories under the head directory,
-excluding directory names that match exclusion-list"
+  "Recursively list directories under HEAD-DIR.
+Exclude directory names that match EXCLUSION-LIST."
 ; for look, this should be relative to look-pwd
   (unless head-dir (setq head-dir "./"))
   (let ((recursive-dir-list nil)
