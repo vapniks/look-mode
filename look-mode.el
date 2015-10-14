@@ -103,7 +103,22 @@
   :group 'look
   :type 'boolean)
 
+(defcustom look-extra-info-templates
+  '((doc-view-mode . `(progn (setq doc-view-image-width ,doc-view-image-width)
+			     (doc-view-goto-page ,(doc-view-current-page)))))
+  "Extra information used by `look-setup-buffer' to display files.
+This is a alist whose keys are `major-mode' symbols, and whose
+values are sexps to be evaluated in the `look-buffer' for saving
+extra information such as image size, page number, etc.
+The sexp should return another sexp that sets the image size,
+page number etc, and will be evaluated when the file is visited again."
+  :group 'look
+  :type '(alist :key-type (symbol :tag "Major mode")
+		:value-type (sexp :tag "List")))
+
 ;; Variables that make the code work
+(defvar look-extra-info nil
+  "Alist of filenames and sexps to evaluate when the file is visited.")
 (defvar look-forward-file-list nil
   "List of files stored by the command look-at-files for future viewing.")
 (defvar look-reverse-file-list nil
@@ -232,10 +247,16 @@ This function gets the file list by expanding LOOK-WILDCARD with
 Discards the file from the list if it is not a regular file or symlink to one.
 With prefix arg get the ARG'th next file in the list."
   (interactive "p")		    ; pass no args on interactive call
+  (if (and look-current-file
+	   (assoc major-mode look-extra-info-templates))
+      (let ((info (eval (cdr (assoc major-mode look-extra-info-templates))))
+	    (item (assoc look-current-file look-extra-info)))
+	(if item (setcdr item info)
+	  (add-to-list 'look-extra-info (cons look-current-file info)))))
   (if (memq major-mode '(doc-view-mode pdf-view-mode image-mode))
       (set-buffer-modified-p nil))
-  (kill-buffer look-buffer)	    ; clear the look-buffer
-  (switch-to-buffer look-buffer)    ; reopen the look-buffer
+  (kill-buffer look-buffer)		; clear the look-buffer
+  (switch-to-buffer look-buffer)	; reopen the look-buffer
   (dotimes (i (or arg 1))
     (if (and look-current-file
 	     (or (eq i 0) look-forward-file-list))
@@ -250,6 +271,12 @@ With prefix arg get the ARG'th next file in the list."
   "Gets the previous file in the list.
 With prefix arg get the ARG'th previous file in the list."
   (interactive "p"); pass no args on interactive call
+  (if (and look-current-file
+	   (assoc major-mode look-extra-info-templates))
+      (let ((info (eval (cdr (assoc major-mode look-extra-info-templates))))
+	    (item (assoc look-current-file look-extra-info)))
+	(if item (setcdr item info)
+	  (add-to-list 'look-extra-info (cons look-current-file info)))))
   (if (memq major-mode '(doc-view-mode pdf-view-mode image-mode))
       (set-buffer-modified-p nil))
   (kill-buffer look-buffer); clear the look-buffer
@@ -443,7 +470,9 @@ METHOD can be the symbol 'name (sort names alphabetically),
 	(normal-mode)
 	(if (eq major-mode (default-value 'major-mode))
 	    (look-set-mode-with-auto-mode-alist t))
-	(look-update-header-line))
+	(look-update-header-line)
+	(if (assoc major-mode look-extra-info-templates)
+	    (eval (cdr (assoc look-current-file look-extra-info)))))
     (look-no-more))
   (look-mode))				; assert look mode
 
