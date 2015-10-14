@@ -249,21 +249,7 @@ With prefix arg get the ARG'th next file in the list."
 				;; get the next file in the list
 				(pop look-forward-file-list))))
   (setq buffer-file-name look-current-file)
-  (if look-current-file
-      (progn
-        (insert-file-contents look-current-file) ; insert it into the *look* buffer
-	(normal-mode)		 ; get the "normal mode" for this file
-        ;; (setq doc-view-image-width 850
-	;;       pdf-view-display-size 'fit-height)
-	;; (if (eq major-mode 'pdf-view-mode)
-	;;     (pdf-view-redisplay t)
-	;;   (if (eq major-mode 'doc-view-mode)
-	;;       nil))
-        (if (eq major-mode (default-value 'major-mode))
-            (look-set-mode-with-auto-mode-alist t))
-        (look-update-header-line))
-    (look-no-more))
-  (look-mode)				; assert look mode
+  (look-set-mode look-current-file)
   (look-adjust-file))
 
 (defun look-at-previous-file (&optional arg)
@@ -282,36 +268,20 @@ With prefix arg get the ARG'th previous file in the list."
 				;; get the next file in the list
 				(pop look-reverse-file-list))))
   (setq buffer-file-name look-current-file)
-  (if look-current-file
-      (progn
-        (insert-file-contents look-current-file) ; insert it into the *look* buffer
-        (normal-mode)
-        (if (eq major-mode (default-value 'major-mode))
-            (look-set-mode-with-auto-mode-alist t))
-        (look-update-header-line))
-    (look-no-more))
-  (look-mode); assert look mode
+  (look-set-mode look-current-file)
   (look-adjust-file))
 
 (defun look-remove-this-file nil
   "Remove the currently looked at file from the list."
   (interactive)
-  (unless (not (y-or-n-p "Remove current file?"))
+  (unless (not (y-or-n-p "Remove current file? "))
     (kill-buffer look-buffer)		; clear the look-buffer
     (switch-to-buffer look-buffer)	; reopen the look-buffer
     (setq look-current-file (if look-reverse-file-list ;remove the current file
 				(pop look-reverse-file-list)
 			      (if look-forward-file-list
 				  (pop look-reverse-file-list))))
-    (if look-current-file
-	(progn
-	  (insert-file-contents look-current-file) ; insert it into the *look* buffer
-	  (normal-mode)
-	  (if (eq major-mode (default-value 'major-mode))
-	      (look-set-mode-with-auto-mode-alist t))
-	  (look-update-header-line))
-      (look-no-more))
-    (look-mode)				; assert look mode
+    (look-set-mode look-current-file)
     (look-adjust-file)))
 
 (defun look-at-nth-file (n)
@@ -368,14 +338,7 @@ With 0 being the first file, and -1 being the last file,
   (interactive); pass no args on interactive call
   (kill-buffer look-buffer); clear the look-buffer
   (switch-to-buffer look-buffer); reopen the look-buffer
-  (if look-current-file
-      (progn
-        (insert-file-contents look-current-file) ; insert it into the *look* buffer
-        (if (eq major-mode (default-value 'major-mode))
-            (look-set-mode-with-auto-mode-alist t))
-        (look-update-header-line))
-    (look-no-more))
-  (look-mode); assert look mode
+  (look-set-mode look-current-file)
   (look-adjust-file))
 
 (defun look-sort-files (method)
@@ -455,6 +418,18 @@ METHOD can be the symbol 'name (sort names alphabetically),
     (look-update-header-line)))
 
 ;;;; subroutines
+
+(defun look-set-mode (file)
+  "Insert FILE into current buffer and set mode appropriately."
+  (if file
+      (progn
+	(insert-file-contents file) ; insert it into the *look* buffer
+	(normal-mode)
+	(if (eq major-mode (default-value 'major-mode))
+	    (look-set-mode-with-auto-mode-alist t))
+	(look-update-header-line))
+    (look-no-more))
+  (look-mode))				; assert look mode
 
 (defun look-adjust-file nil
   "Make adjustments to currently looked at file."
