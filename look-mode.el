@@ -312,11 +312,7 @@ With prefix arg get the ARG'th previous file in the list."
 	  (look-update-header-line))
       (look-no-more))
     (look-mode)				; assert look mode
-    (if (and look-current-file (featurep 'eimp)
-	     (string-match "[Jj][Pp][Ee]?[Gg]"
-			   (or (file-name-extension look-current-file) "")))
-	;; scale to window if its a jpeg
-	(eimp-fit-image-to-window nil))))
+    (look-adjust-file)))
 
 (defun look-at-nth-file (n)
   "Look at the N'th file in the list.
