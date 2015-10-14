@@ -105,7 +105,16 @@
 
 (defcustom look-extra-info-templates
   '((doc-view-mode . `(progn (setq doc-view-image-width ,doc-view-image-width)
-			     (doc-view-goto-page ,(doc-view-current-page)))))
+			     (doc-view-goto-page ,(doc-view-current-page))
+			     (image-next-line ,(window-vscroll))
+			     (set-window-hscroll nil ,(window-hscroll))))
+    (pdf-view-mode . `(progn (setq pdf-view-display-size ',pdf-view-display-size)
+			     (pdf-view-goto-page ,(pdf-view-current-page))
+			     (image-next-line ,(window-vscroll))
+			     (set-window-hscroll nil ,(window-hscroll))))
+    (image-mode . `(let ((size ',(image-size (eimp-get-image) t)))
+		     (eimp-mogrify-image
+		      (list "-resize" (format "%dx%d!" (car size) (cdr size)))))))
   "Extra information used by `look-setup-buffer' to display files.
 This is a alist whose keys are `major-mode' symbols, and whose
 values are sexps to be evaluated in the `look-buffer' for saving
@@ -264,8 +273,7 @@ With prefix arg get the ARG'th next file in the list."
     (setq look-current-file (if look-forward-file-list
 				;; get the next file in the list
 				(pop look-forward-file-list))))
-  (look-setup-buffer look-current-file)
-  (look-adjust-file))
+  (look-setup-buffer look-current-file))
 
 (defun look-at-previous-file (&optional arg)
   "Gets the previous file in the list.
@@ -288,8 +296,7 @@ With prefix arg get the ARG'th previous file in the list."
     (setq look-current-file (if look-reverse-file-list
 				;; get the next file in the list
 				(pop look-reverse-file-list))))
-  (look-setup-buffer look-current-file)
-  (look-adjust-file))
+  (look-setup-buffer look-current-file))
 
 (defun look-remove-this-file nil
   "Remove the currently looked at file from the list."
@@ -304,8 +311,7 @@ With prefix arg get the ARG'th previous file in the list."
 	      (pop look-reverse-file-list)
 	    (if look-forward-file-list
 		(pop look-reverse-file-list))))
-    (look-setup-buffer look-current-file)
-    (look-adjust-file)))
+    (look-setup-buffer look-current-file)))
 
 (defun look-insert-file (file)
   "Insert FILE into the list of looked at files.
@@ -323,8 +329,7 @@ and will become the new currently looked at file."
 	(cons look-current-file
 	      look-reverse-file-list)
 	look-current-file file)
-  (look-setup-buffer look-current-file)
-  (look-adjust-file))
+  (look-setup-buffer look-current-file))
   
 (defun look-at-nth-file (n)
   "Look at the N'th file in the list.
@@ -380,8 +385,7 @@ With 0 being the first file, and -1 being the last file,
   (interactive); pass no args on interactive call
   (kill-buffer look-buffer); clear the look-buffer
   (switch-to-buffer look-buffer); reopen the look-buffer
-  (look-setup-buffer look-current-file)
-  (look-adjust-file))
+  (look-setup-buffer look-current-file))
 
 (defun look-sort-files (method)
   "Sort the looked at files.
@@ -475,14 +479,6 @@ METHOD can be the symbol 'name (sort names alphabetically),
 	    (eval (cdr (assoc look-current-file look-extra-info)))))
     (look-no-more))
   (look-mode))				; assert look mode
-
-(defun look-adjust-file nil
-  "Make adjustments to currently looked at file."
-  (if (and look-current-file
-	   (featurep 'eimp)
-	   (eq major-mode 'image-mode))
-      ;; scale to window if its a jpeg
-      (eimp-fit-image-to-window nil)))
 
 (defun look-keep-header-on-top (window start)
   "Used by `look-update-header-line' to keep overlay at top of buffer.
