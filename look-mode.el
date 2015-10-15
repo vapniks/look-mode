@@ -478,9 +478,18 @@ METHOD can be the symbol 'name (sort names alphabetically),
     (look-update-header-line)))
 
 (defun look-reset-file-statuses nil
-  "Reset the file statuses saved in `look-file-statuses'."
+  "Reset the file statuses saved in `look-file-statuses'.
+Note: this will not change the settings for the currently
+looked at file."
   (interactive)
   (setq look-file-statuses nil))
+
+(defun look-customize-defaults nil
+  "Customize `look-default-file-statuses'.
+This is a convenience function for when you want to
+change the default settings for all files."
+  (interactive)
+  (customize-option 'look-default-file-statuses))
 
 ;;;; subroutines
 
