@@ -103,7 +103,7 @@
   :group 'look
   :type 'boolean)
 
-(defcustom look-file-statuses-templates
+(defcustom look-file-status-templates
   '((doc-view-mode . `(progn (setq doc-view-image-width ,doc-view-image-width)
 			     (doc-view-goto-page ,(doc-view-current-page))
 			     (image-next-line ,(window-vscroll))
@@ -123,6 +123,17 @@ values are sexps to be evaluated in the `look-buffer' for saving
 extra information such as image size, page number, etc.
 The sexp should return another sexp that sets the image size,
 page number etc, and will be evaluated when the file is visited again."
+  :group 'look
+  :type '(alist :key-type (symbol :tag "Major mode")
+		:value-type (sexp :tag "List")))
+
+(defcustom look-default-file-statuses
+  '((doc-view-mode . (doc-view-fit-height-to-window))
+    (pdf-view-mode . (pdf-view-fit-height-to-window))
+    (image-mode . (eimp-fit-image-height-to-window nil)))
+  "Alist of default values for `look-file-statuses'.
+Each element is a cons cell whose car is a `major-mode' symbol,
+and whose cdr is an sexp to be evaluated in files with that mode."
   :group 'look
   :type '(alist :key-type (symbol :tag "Major mode")
 		:value-type (sexp :tag "List")))
@@ -260,8 +271,8 @@ Discards the file from the list if it is not a regular file or symlink to one.
 With prefix arg get the ARG'th next file in the list."
   (interactive "p")		    ; pass no args on interactive call
   (if (and look-current-file
-	   (assoc major-mode look-file-statuses-templates))
-      (let ((info (eval (cdr (assoc major-mode look-file-statuses-templates))))
+	   (assoc major-mode look-file-status-templates))
+      (let ((info (eval (cdr (assoc major-mode look-file-status-templates))))
 	    (item (assoc look-current-file look-file-statuses)))
 	(if item (setcdr item info)
 	  (add-to-list 'look-file-statuses (cons look-current-file info)))))
@@ -283,8 +294,8 @@ With prefix arg get the ARG'th next file in the list."
 With prefix arg get the ARG'th previous file in the list."
   (interactive "p"); pass no args on interactive call
   (if (and look-current-file
-	   (assoc major-mode look-file-statuses-templates))
-      (let ((info (eval (cdr (assoc major-mode look-file-statuses-templates))))
+	   (assoc major-mode look-file-status-templates))
+      (let ((info (eval (cdr (assoc major-mode look-file-status-templates))))
 	    (item (assoc look-current-file look-file-statuses)))
 	(if item (setcdr item info)
 	  (add-to-list 'look-file-statuses (cons look-current-file info)))))
@@ -483,10 +494,14 @@ METHOD can be the symbol 'name (sort names alphabetically),
 	(if (eq major-mode (default-value 'major-mode))
 	    (look-set-mode-with-auto-mode-alist t))
 	(look-update-header-line)
-	(if (assoc major-mode look-file-statuses-templates)
-	    (eval (cdr (assoc look-current-file look-file-statuses)))))
+	;; apply file status code if available
+	(if (and (assoc major-mode look-file-status-templates)
+		 (assoc look-current-file look-file-statuses))
+	    (eval (cdr (assoc look-current-file look-file-statuses)))
+	  (if (assoc major-mode look-default-file-statuses)
+	      (eval (cdr (assoc major-mode look-default-file-statuses))))))
     (look-no-more))
-  (look-mode))				; assert look mode
+  (look-mode))
 
 (defun look-keep-header-on-top (window start)
   "Used by `look-update-header-line' to keep overlay at top of buffer.
