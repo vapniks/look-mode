@@ -103,7 +103,7 @@
   :group 'look
   :type 'boolean)
 
-(defcustom look-file-status-templates
+(defcustom look-file-settings-templates
   '((doc-view-mode . `(progn (setq doc-view-image-width ,doc-view-image-width)
 			     (doc-view-goto-page ,(doc-view-current-page))
 			     (image-next-line ,(window-vscroll))
@@ -127,11 +127,11 @@ page number etc, and will be evaluated when the file is visited again."
   :type '(alist :key-type (symbol :tag "Major mode")
 		:value-type (sexp :tag "List")))
 
-(defcustom look-default-file-statuses
+(defcustom look-default-file-settings
   '((doc-view-mode . (doc-view-fit-height-to-window))
     (pdf-view-mode . (pdf-view-fit-height-to-window))
     (image-mode . (eimp-fit-image-height-to-window nil)))
-  "Alist of default values for `look-file-statuses'.
+  "Alist of default values for `look-file-settings'.
 Each element is a cons cell whose car is a `major-mode' symbol,
 and whose cdr is an sexp to be evaluated in files with that mode."
   :group 'look
@@ -139,7 +139,7 @@ and whose cdr is an sexp to be evaluated in files with that mode."
 		:value-type (sexp :tag "List")))
 
 ;; Variables that make the code work
-(defvar look-file-statuses nil
+(defvar look-file-settings nil
   "Alist of filenames and sexps to evaluate when the file is visited.")
 (defvar look-forward-file-list nil
   "List of files stored by the command look-at-files for future viewing.")
@@ -199,7 +199,7 @@ and whose cdr is an sexp to be evaluated in files with that mode."
   (setq look-skip-directory-list nil)
   (setq look-show-subdirs nil)
   (setq look-current-file nil)
-  (setq look-file-statuses nil)
+  (setq look-file-settings nil)
   (setq look-buffer "*look*"))
 
 ;;;; Navigation Commands
@@ -271,11 +271,11 @@ Discards the file from the list if it is not a regular file or symlink to one.
 With prefix arg get the ARG'th next file in the list."
   (interactive "p")		    ; pass no args on interactive call
   (if (and look-current-file
-	   (assoc major-mode look-file-status-templates))
-      (let ((info (eval (cdr (assoc major-mode look-file-status-templates))))
-	    (item (assoc look-current-file look-file-statuses)))
+	   (assoc major-mode look-file-settings-templates))
+      (let ((info (eval (cdr (assoc major-mode look-file-settings-templates))))
+	    (item (assoc look-current-file look-file-settings)))
 	(if item (setcdr item info)
-	  (add-to-list 'look-file-statuses (cons look-current-file info)))))
+	  (add-to-list 'look-file-settings (cons look-current-file info)))))
   (if (memq major-mode '(doc-view-mode pdf-view-mode image-mode))
       (set-buffer-modified-p nil))
   (kill-buffer look-buffer)		; clear the look-buffer
@@ -294,11 +294,11 @@ With prefix arg get the ARG'th next file in the list."
 With prefix arg get the ARG'th previous file in the list."
   (interactive "p"); pass no args on interactive call
   (if (and look-current-file
-	   (assoc major-mode look-file-status-templates))
-      (let ((info (eval (cdr (assoc major-mode look-file-status-templates))))
-	    (item (assoc look-current-file look-file-statuses)))
+	   (assoc major-mode look-file-settings-templates))
+      (let ((info (eval (cdr (assoc major-mode look-file-settings-templates))))
+	    (item (assoc look-current-file look-file-settings)))
 	(if item (setcdr item info)
-	  (add-to-list 'look-file-statuses (cons look-current-file info)))))
+	  (add-to-list 'look-file-settings (cons look-current-file info)))))
   (if (memq major-mode '(doc-view-mode pdf-view-mode image-mode))
       (set-buffer-modified-p nil))
   (kill-buffer look-buffer); clear the look-buffer
@@ -477,19 +477,19 @@ METHOD can be the symbol 'name (sort names alphabetically),
 	  look-reverse-file-list (reverse (cl-subseq files 0 pos2)))
     (look-update-header-line)))
 
-(defun look-reset-file-statuses nil
-  "Reset the file statuses saved in `look-file-statuses'.
+(defun look-reset-file-settings nil
+  "Reset the file settings saved in `look-file-settings'.
 Note: this will not change the settings for the currently
 looked at file."
   (interactive)
-  (setq look-file-statuses nil))
+  (setq look-file-settings nil))
 
 (defun look-customize-defaults nil
-  "Customize `look-default-file-statuses'.
+  "Customize `look-default-file-settings'.
 This is a convenience function for when you want to
 change the default settings for all files."
   (interactive)
-  (customize-option 'look-default-file-statuses))
+  (customize-option 'look-default-file-settings))
 
 ;;;; subroutines
 
@@ -503,12 +503,12 @@ change the default settings for all files."
 	(if (eq major-mode (default-value 'major-mode))
 	    (look-set-mode-with-auto-mode-alist t))
 	(look-update-header-line)
-	;; apply file status code if available
-	(if (and (assoc major-mode look-file-status-templates)
-		 (assoc look-current-file look-file-statuses))
-	    (eval (cdr (assoc look-current-file look-file-statuses)))
-	  (if (assoc major-mode look-default-file-statuses)
-	      (eval (cdr (assoc major-mode look-default-file-statuses))))))
+	;; apply file settings if available
+	(if (and (assoc major-mode look-file-settings-templates)
+		 (assoc look-current-file look-file-settings))
+	    (eval (cdr (assoc look-current-file look-file-settings)))
+	  (if (assoc major-mode look-default-file-settings)
+	      (eval (cdr (assoc major-mode look-default-file-settings))))))
     (look-no-more))
   (look-mode))
 
