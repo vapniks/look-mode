@@ -381,9 +381,9 @@ With 0 being the first file, and -1 being the last file,
 		     (t (search-backward regex nil t)))))
     (look-at-next-file)))
 
-(defun look-sort-files (method)
+(defun look-sort-files (pred)
   "Sort the looked at files.
-METHOD can be the symbol 'name (sort names alphabetically),
+PRED can be the symbol 'name (sort names alphabetically),
  'age (sort by last modified time), 'size (sort by size in bytes),
  or a predicate function that can be used by `sort' (which see)."
   (interactive (list (let ((input (ido-completing-read
@@ -401,7 +401,7 @@ METHOD can be the symbol 'name (sort names alphabetically),
 			   look-forward-file-list))
 	 (sortedfiles
 	  (sort allfiles
-		(case method
+		(case pred
 		  (name 'string-lessp)
 		  (age (lambda (a b)
 			 (time-less-p (fifth (file-attributes a))
@@ -409,7 +409,7 @@ METHOD can be the symbol 'name (sort names alphabetically),
 		  (size (lambda (a b)
 			  (<= (eighth (file-attributes a))
 			      (eighth (file-attributes b)))))
-		  (t method))))
+		  (t pred))))
 	 (pos (if look-current-file
 		  (cl-position look-current-file sortedfiles
 			       :test 'equal))))
@@ -470,6 +470,11 @@ This is a convenience function for when you want to
 change the default settings for all files."
   (interactive)
   (customize-option 'look-default-file-settings))
+
+(defun look-filter-files (pred &optional arg)
+  "Remove all files from the list that don't match PRED.
+If prefix arg ARG is non-nil remove files that do match PRED."
+  )
 
 ;;;; subroutines
 
