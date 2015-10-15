@@ -117,7 +117,7 @@
 		      (list "-resize" (format "%dx%d!" (car size) (cdr size))))
 		     (image-next-line ,(window-vscroll))
 		     (set-window-hscroll nil ,(window-hscroll)))))
-  "Extra information used by `look-setup-buffer' to display files.
+  "Extra information used by `look-at-this-file' to display files.
 This is a alist whose keys are `major-mode' symbols, and whose
 values are sexps to be evaluated in the `look-buffer' for saving
 extra information such as image size, page number, etc.
@@ -276,10 +276,6 @@ With prefix arg get the ARG'th next file in the list."
 	    (item (assoc look-current-file look-file-settings)))
 	(if item (setcdr item info)
 	  (add-to-list 'look-file-settings (cons look-current-file info)))))
-  (if (memq major-mode '(doc-view-mode pdf-view-mode image-mode))
-      (set-buffer-modified-p nil))
-  (kill-buffer look-buffer)		; clear the look-buffer
-  (switch-to-buffer look-buffer)	; reopen the look-buffer
   (dotimes (i (or arg 1))
     (if (and look-current-file
 	     (or (eq i 0) look-forward-file-list))
@@ -287,7 +283,7 @@ With prefix arg get the ARG'th next file in the list."
     (setq look-current-file (if look-forward-file-list
 				;; get the next file in the list
 				(pop look-forward-file-list))))
-  (look-setup-buffer look-current-file))
+  (look-at-this-file look-current-file))
 
 (defun look-at-previous-file (&optional arg)
   "Gets the previous file in the list.
@@ -299,10 +295,6 @@ With prefix arg get the ARG'th previous file in the list."
 	    (item (assoc look-current-file look-file-settings)))
 	(if item (setcdr item info)
 	  (add-to-list 'look-file-settings (cons look-current-file info)))))
-  (if (memq major-mode '(doc-view-mode pdf-view-mode image-mode))
-      (set-buffer-modified-p nil))
-  (kill-buffer look-buffer); clear the look-buffer
-  (switch-to-buffer look-buffer); reopen the look-buffer
   (dotimes (i (or arg 1))
     (if (and look-current-file
 	     (or (eq i 0) look-reverse-file-list))
@@ -310,22 +302,18 @@ With prefix arg get the ARG'th previous file in the list."
     (setq look-current-file (if look-reverse-file-list
 				;; get the next file in the list
 				(pop look-reverse-file-list))))
-  (look-setup-buffer look-current-file))
+  (look-at-this-file look-current-file))
 
 (defun look-remove-this-file nil
   "Remove the currently looked at file from the list."
   (interactive)
   (unless (not (y-or-n-p "Remove current file? "))
-    (if (memq major-mode '(doc-view-mode pdf-view-mode image-mode))
-	(set-buffer-modified-p nil))
-    (kill-buffer look-buffer)		; clear the look-buffer
-    (switch-to-buffer look-buffer)	; reopen the look-buffer
     (setq look-current-file
 	  (if look-reverse-file-list	;remove the current file
 	      (pop look-reverse-file-list)
 	    (if look-forward-file-list
 		(pop look-reverse-file-list))))
-    (look-setup-buffer look-current-file)))
+    (look-at-this-file look-current-file)))
 
 (defun look-insert-file (file)
   "Insert FILE into the list of looked at files.
@@ -335,16 +323,11 @@ and will become the new currently looked at file."
 		      "File: "
 		      (if look-current-file
 			  (file-name-directory look-current-file)))))
-  (if (memq major-mode '(doc-view-mode pdf-view-mode image-mode))
-      (set-buffer-modified-p nil))
-  (kill-buffer look-buffer)
-  (switch-to-buffer look-buffer)
   (setq look-reverse-file-list
-	(cons look-current-file
-	      look-reverse-file-list)
+	(cons look-current-file look-reverse-file-list)
 	look-current-file file)
-  (look-setup-buffer look-current-file))
-  
+  (look-at-this-file look-current-file))
+
 (defun look-at-nth-file (n)
   "Look at the N'th file in the list.
 If N is negative count backwards from the end of the list.
@@ -393,13 +376,6 @@ With 0 being the first file, and -1 being the last file,
 		     (doc-view-mode (doc-view-search regex t))
 		     (t (search-backward regex nil t)))))
     (look-at-next-file)))
-
-(defun look-at-this-file ()
-  "Reloads current file in the buffer."
-  (interactive); pass no args on interactive call
-  (kill-buffer look-buffer); clear the look-buffer
-  (switch-to-buffer look-buffer); reopen the look-buffer
-  (look-setup-buffer look-current-file))
 
 (defun look-sort-files (method)
   "Sort the looked at files.
@@ -493,8 +469,15 @@ change the default settings for all files."
 
 ;;;; subroutines
 
-(defun look-setup-buffer (file)
-  "Insert FILE into current buffer and set mode appropriately."
+(defun look-at-this-file (file)
+  "Insert FILE into `look-buffer' and set mode appropriately.
+When called interactively reload currently looked at file."
+  (interactive (list look-current-file))
+  (with-current-buffer look-buffer
+    (if (memq major-mode '(doc-view-mode pdf-view-mode image-mode))
+	(set-buffer-modified-p nil)))
+  (kill-buffer look-buffer)		; clear the look-buffer
+  (switch-to-buffer look-buffer)	; reopen the look-buffer
   (if file
       (progn
 	(insert-file-contents file) ; insert it into the *look* buffer
