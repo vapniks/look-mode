@@ -204,32 +204,36 @@ and whose cdr is an sexp to be evaluated in files with that mode."
 
 ;;;; Navigation Commands
 
-(defun look-at-files (look-wildcard)
+(defun look-at-files (look-wildcard &optional add)
   "Look at files in directory. Insert into temporary buffer one at a time.
 This function gets the file list by expanding LOOK-WILDCARD with
- `file-expand-wildcards', and passes it to `look-at-next-file'."
-  (interactive "sEnter filename (w/ wildcards): ")
+ `file-expand-wildcards', and passes it to `look-at-next-file'.
+If ADD is non-nil then files are added to the end of the currently looked at files, 
+otherwise they replace them."
+  (interactive (list (read-from-minibuffer "Enter filename (w/ wildcards): ")
+		     (if (or look-forward-file-list look-reverse-file-list)
+			 (y-or-n-p "Add to current list of looked at files? "))))
   (if (and (string-match "[Jj][Pp][Ee]?[Gg]" look-wildcard)
            (not (featurep 'eimp)))
       (require 'eimp nil t))
   (if (string= look-wildcard "")
       (setq look-wildcard "*"))
-  (setq look-forward-file-list nil)
-  (setq look-subdir-list (list "./"));nil)
-  (setq look-reverse-file-list nil)
-  (setq look-current-file nil)
-  (setq look-pwd (replace-regexp-in-string
-                  "~" (getenv "HOME")
-                  (replace-regexp-in-string
-                   "^Directory " "" (pwd))))
+  (if (not add) (setq look-forward-file-list nil
+		      look-reverse-file-list nil
+		      look-current-file nil))
+  (setq look-subdir-list (list "./")
+	look-pwd (replace-regexp-in-string
+		  "~" (getenv "HOME")
+		  (replace-regexp-in-string
+		   "^Directory " "" (pwd))))
   (let ((look-file-list (file-expand-wildcards look-wildcard))
         (fullpath-dir-list nil))
-  ; use relative file names to prevent weird side effects with skip lists
-  ; cat look-pwd with filename, separate dirs from files,
-  ; remove files/dirs that match elements of the skip lists ;;
+    ;; use relative file names to prevent weird side effects with skip lists
+    ;; cat look-pwd with filename, separate dirs from files,
+    ;; remove files/dirs that match elements of the skip lists ;;
     (dolist (lfl-item look-file-list look-forward-file-list)
       (if (and (file-regular-p lfl-item)
-               ; check if any regexps in skip list match filename
+               ;; check if any regexps in skip list match filename
                (catch 'skip-this-one
                  (dolist (regexp look-skip-file-list t)
                    (if (string-match regexp lfl-item)
@@ -239,7 +243,7 @@ This function gets the file list by expanding LOOK-WILDCARD with
                        (list (if (file-name-absolute-p lfl-item) lfl-item
 			       (concat look-pwd lfl-item)))))
         (if (and (file-directory-p lfl-item)
-                 ; check if any regexps in skip list match directory
+                 ;; check if any regexps in skip list match directory
                  (catch 'skip-this-one
                    (dolist (regexp look-skip-directory-list t)
                      (if (string-match regexp lfl-item)
@@ -255,13 +259,13 @@ This function gets the file list by expanding LOOK-WILDCARD with
               (setq fullpath-dir-list
                     (nconc fullpath-dir-list
                            (list lfl-item)))))))
-    ; now strip look-pwd off the subdirs in subdirlist
-    ; or maybe I should leave everything as full-path....
+    ;; now strip look-pwd off the subdirs in subdirlist
+    ;; or maybe I should leave everything as full-path....
     (dolist (fullpath fullpath-dir-list look-subdir-list)
       (setq look-subdir-list
             (nconc look-subdir-list
                    (list (file-name-as-directory
-                          (replace-regexp-in-string look-pwd "" fullpath)))))));tel
+                          (replace-regexp-in-string look-pwd "" fullpath)))))))	;tel
   (get-buffer-create look-buffer)
   (look-at-next-file))
 
