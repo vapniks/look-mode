@@ -179,6 +179,54 @@ and whose cdr is an sexp to be evaluated in files with that mode."
     map)
   "Keymap for Look mode.")
 
+(defvar look-sort-predicates '((name . string-lessp)
+			       (age . (lambda (a b)
+					(time-less-p (fifth (file-attributes a))
+						     (fifth (file-attributes b)))))
+			       (size . (lambda (a b)
+					 (<= (eighth (file-attributes a))
+					     (eighth (file-attributes b))))))
+  "List of sorting predicate functions.")
+
+(unless (and (fboundp 'ido-choose-function)
+	     (boundp 'ido-read-function-history))
+  (defvar ido-read-function-history nil
+    "A history list of Lisp expressions forf `ido-choose-function'.
+Keeps track of Lisp expressions entered by the user, (but not functions
+selected from the list).")
+
+  (defun ido-choose-function (funcs &optional prompt other arity)
+    "Prompt the user for one of the functions in FUNCS.
+FUNCS should a list of cons cells whose cars are the function names,
+ (either strings or symbols), and whose cdrs are the functions themselves.
+If PROMPT is non-nil use that as the prompt.
+If OTHER is non-nil allow the user to enter a function of their own.
+If OTHER is a string, use that as the prompt when asking the user to
+enter a function of their own."
+    (cl-flet ((asstring (x) (if (symbolp x) (symbol-name x)
+			      (if (stringp x) x
+				(error "Invalid element: %S" x)))))
+      (let* ((names (mapcar (lambda (x) (asstring (car x))) funcs))
+	     (otherstr (if other
+			   (if (not (member "other" names))
+			       "other"
+			     "user function")))
+	     (otherprompt (if other
+			      (if (stringp other)
+				  other
+				"User function: ")))
+	     (choice (ido-completing-read
+		      (or prompt "Function: ")
+		      (append (if otherstr (list otherstr)) names)
+		      nil nil nil 'ido-functions-history))
+	     (func (if (equal choice otherstr)
+		       (read-from-minibuffer
+			otherprompt nil nil t 'ido-read-function-history)
+		     (cdr (cl-assoc choice funcs
+				    :test (lambda (a b) (equal (asstring a)
+							       (asstring b))))))))
+	(if (functionp func) func (error "Invalid function: %S" func))))))
+
 (define-minor-mode look-mode
   "A minor mode for flipping through files."
   :init-value nil ; maybe make this t?
@@ -382,34 +430,15 @@ With 0 being the first file, and -1 being the last file,
     (look-at-next-file)))
 
 (defun look-sort-files (pred)
-  "Sort the looked at files.
-PRED can be the symbol 'name (sort names alphabetically),
- 'age (sort by last modified time), 'size (sort by size in bytes),
- or a predicate function that can be used by `sort' (which see)."
-  (interactive (list (let ((input (ido-completing-read
-				   "Sort by: "
-				   '("name" "age" "size" "other") nil nil)))
-		       (cond ((equal input "name") 'name)
-			     ((equal input "age") 'age)
-			     ((equal input "size") 'size)
-			     ((equal input "other")
-			      (read-from-minibuffer
-			       "Predicate function: " nil nil t))))))
+  "Sort the looked at files using function PRED.
+PRED is a function of two arguments as used by `sort' (which see)."
+  (interactive (list (ido-choose-function
+		      look-sort-predicates "Sort predicate: " "Function of 2 args: ")))
   (let* ((allfiles (append (reverse look-reverse-file-list)
 			   (if look-current-file
 			       (list look-current-file))
 			   look-forward-file-list))
-	 (sortedfiles
-	  (sort allfiles
-		(case pred
-		  (name 'string-lessp)
-		  (age (lambda (a b)
-			 (time-less-p (fifth (file-attributes a))
-				      (fifth (file-attributes b)))))
-		  (size (lambda (a b)
-			  (<= (eighth (file-attributes a))
-			      (eighth (file-attributes b)))))
-		  (t pred))))
+	 (sortedfiles (sort allfiles pred))
 	 (pos (if look-current-file
 		  (cl-position look-current-file sortedfiles
 			       :test 'equal))))
