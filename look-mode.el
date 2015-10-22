@@ -79,6 +79,9 @@
 ;;; Future:
 ;; see arxiv-reader
 
+;;; Requirements:
+(require 'ido-choose-function)
+
 ;;; Code:
 
 ;; Customizations
@@ -125,7 +128,7 @@ The sexp should return another sexp that sets the image size,
 page number etc, and will be evaluated when the file is visited again."
   :group 'look
   :type '(alist :key-type (symbol :tag "Major mode")
-		:value-type (sexp :tag "List")))
+		:value-type (sexp :tag "Code")))
 
 (defcustom look-default-file-settings
   '((doc-view-mode . (doc-view-fit-height-to-window))
@@ -137,6 +140,29 @@ and whose cdr is an sexp to be evaluated in files with that mode."
   :group 'look
   :type '(alist :key-type (symbol :tag "Major mode")
 		:value-type (sexp :tag "List")))
+
+(defcustom look-sort-predicates
+  '((name . string-lessp)
+    (age . (lambda (a b)
+	     (time-less-p (fifth (file-attributes a))
+			  (fifth (file-attributes b)))))
+    (size . (lambda (a b)
+	      (<= (eighth (file-attributes a))
+		  (eighth (file-attributes b))))))
+  "List of sorting predicate functions."
+  :type '(alist :key-type (symbol :tag "Name")
+		:value-type (function :tag "Function (1 arg)"))
+  :group 'look)
+
+(defcustom look-filter-functions
+  '((name . (lambda (file regex)
+	      (interactive (list '<> (read-regexp
+				      "Regexp matching filename: ")))
+	      (string-match regex file))))
+  "List of functions that can be used by `look-filter-files'."
+  :type '(alist :key-type (symbol :tag "Name")
+		:value-type (function :tag "Function (1 arg)"))
+  :group 'look)
 
 ;; Variables that make the code work
 (defvar look-file-settings nil
@@ -178,54 +204,6 @@ and whose cdr is an sexp to be evaluated in files with that mode."
     (define-key map (kbd "C-c l") (lambda () (interactive) (customize-group 'look)))
     map)
   "Keymap for Look mode.")
-
-(defvar look-sort-predicates '((name . string-lessp)
-			       (age . (lambda (a b)
-					(time-less-p (fifth (file-attributes a))
-						     (fifth (file-attributes b)))))
-			       (size . (lambda (a b)
-					 (<= (eighth (file-attributes a))
-					     (eighth (file-attributes b))))))
-  "List of sorting predicate functions.")
-
-(unless (and (fboundp 'ido-choose-function)
-	     (boundp 'ido-read-function-history))
-  (defvar ido-read-function-history nil
-    "A history list of Lisp expressions forf `ido-choose-function'.
-Keeps track of Lisp expressions entered by the user, (but not functions
-selected from the list).")
-
-  (defun ido-choose-function (funcs &optional prompt other arity)
-    "Prompt the user for one of the functions in FUNCS.
-FUNCS should a list of cons cells whose cars are the function names,
- (either strings or symbols), and whose cdrs are the functions themselves.
-If PROMPT is non-nil use that as the prompt.
-If OTHER is non-nil allow the user to enter a function of their own.
-If OTHER is a string, use that as the prompt when asking the user to
-enter a function of their own."
-    (cl-flet ((asstring (x) (if (symbolp x) (symbol-name x)
-			      (if (stringp x) x
-				(error "Invalid element: %S" x)))))
-      (let* ((names (mapcar (lambda (x) (asstring (car x))) funcs))
-	     (otherstr (if other
-			   (if (not (member "other" names))
-			       "other"
-			     "user function")))
-	     (otherprompt (if other
-			      (if (stringp other)
-				  other
-				"User function: ")))
-	     (choice (ido-completing-read
-		      (or prompt "Function: ")
-		      (append (if otherstr (list otherstr)) names)
-		      nil nil nil 'ido-functions-history))
-	     (func (if (equal choice otherstr)
-		       (read-from-minibuffer
-			otherprompt nil nil t 'ido-read-function-history)
-		     (cdr (cl-assoc choice funcs
-				    :test (lambda (a b) (equal (asstring a)
-							       (asstring b))))))))
-	(if (functionp func) func (error "Invalid function: %S" func))))))
 
 (define-minor-mode look-mode
   "A minor mode for flipping through files."
@@ -431,9 +409,9 @@ With 0 being the first file, and -1 being the last file,
 
 (defun look-sort-files (pred)
   "Sort the looked at files using function PRED.
-PRED is a function of two arguments as used by `sort' (which see)."
+PRED is a function of two arguments (filenames) as used by `sort' (which see)."
   (interactive (list (ido-choose-function
-		      look-sort-predicates "Sort predicate: " "Function of 2 args: ")))
+		      look-sort-predicates "Sort predicate: " "Sort function (2 args): ")))
   (let* ((allfiles (append (reverse look-reverse-file-list)
 			   (if look-current-file
 			       (list look-current-file))
@@ -503,7 +481,18 @@ change the default settings for all files."
 (defun look-filter-files (pred &optional arg)
   "Remove all files from the list that don't match PRED.
 If prefix arg ARG is non-nil remove files that do match PRED."
-  )
+  (interactive (list (ido-choose-function
+		      look-filter-functions
+		      "Filter by: "
+		      "Filter function (1 arg): " t)
+		     current-prefix-arg))
+  (let ((func (if arg 'cl-remove-if 'cl-remove-if-not)))
+    (setq look-forward-file-list (funcall func pred look-forward-file-list)
+	  look-reverse-file-list (funcall func pred look-reverse-file-list)
+	  look-current-file (if (if (funcall pred look-current-file)
+				    (not arg) arg)
+				look-current-file))
+    (look-at-this-file look-current-file)))
 
 ;;;; subroutines
 
