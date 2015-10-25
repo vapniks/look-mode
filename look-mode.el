@@ -505,11 +505,14 @@ If prefix arg ARG is non-nil remove files that do match PRED."
   "Insert FILE into `look-buffer' and set mode appropriately.
 When called interactively reload currently looked at file."
   (interactive (list look-current-file))
-  (with-current-buffer look-buffer
-    (if (memq major-mode '(doc-view-mode pdf-view-mode image-mode))
-	(set-buffer-modified-p nil)))
-  (kill-buffer look-buffer)		; clear the look-buffer
-  (switch-to-buffer look-buffer)	; reopen the look-buffer
+  ;;(with-current-buffer look-buffer
+  ;;  (if (memq major-mode '(doc-view-mode pdf-view-mode image-mode))
+  ;;	(set-buffer-modified-p nil)))
+  ;;(kill-buffer look-buffer)		; clear the look-buffer
+  ;;(switch-to-buffer look-buffer)	; reopen the look-buffer
+  (switch-to-buffer look-buffer)
+  (read-only-mode -1)
+  (erase-buffer)
   (if file
       (progn
 	(insert-file-contents file) ; insert it into the *look* buffer
@@ -518,7 +521,7 @@ When called interactively reload currently looked at file."
 	(if (eq major-mode (default-value 'major-mode))
 	    (look-set-mode-with-auto-mode-alist t))
 	(look-update-header-line)
-	;; apply file settings if available
+	;; try to apply file settings if available
 	(if (and (assoc major-mode look-file-settings-templates)
 		 (assoc look-current-file look-file-settings))
 	    (eval (cdr (assoc look-current-file look-file-settings)))
