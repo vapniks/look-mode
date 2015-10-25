@@ -510,6 +510,8 @@ When called interactively reload currently looked at file."
   ;;	(set-buffer-modified-p nil)))
   ;;(kill-buffer look-buffer)		; clear the look-buffer
   ;;(switch-to-buffer look-buffer)	; reopen the look-buffer
+  ;; Don't kill the look-buffer, otherwise `policy-switch-buffer-restore-p'
+  ;; returns t and `policy-switch-config-split-windows' cannot restore it
   (switch-to-buffer look-buffer)
   (read-only-mode -1)
   (erase-buffer)
