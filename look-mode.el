@@ -107,10 +107,11 @@
   :type 'boolean)
 
 (defcustom look-file-settings-templates
-  '((doc-view-mode . `(progn (setq doc-view-image-width ,doc-view-image-width)
-			     (doc-view-goto-page ,(doc-view-current-page))
-			     (image-next-line ,(window-vscroll))
-			     (set-window-hscroll nil ,(window-hscroll))))
+  '((doc-view-mode . `(unless doc-view--current-converter-processes
+			(setq doc-view-image-width ,doc-view-image-width)
+			(doc-view-goto-page ,(doc-view-current-page))
+			(image-next-line ,(window-vscroll))
+			(set-window-hscroll nil ,(window-hscroll))))
     (pdf-view-mode . `(progn (setq pdf-view-display-size ',pdf-view-display-size)
 			     (pdf-view-goto-page ,(pdf-view-current-page))
 			     (image-next-line ,(window-vscroll))
@@ -131,7 +132,8 @@ page number etc, and will be evaluated when the file is visited again."
 		:value-type (sexp :tag "Code")))
 
 (defcustom look-default-file-settings
-  '((doc-view-mode . (doc-view-fit-height-to-window))
+  '((doc-view-mode . (unless doc-view--current-converter-processes
+		       (doc-view-fit-height-to-window)))
     (pdf-view-mode . (pdf-view-fit-height-to-window))
     (image-mode . (eimp-fit-image-height-to-window nil)))
   "Alist of default values for `look-file-settings'.
@@ -510,20 +512,11 @@ When called interactively reload currently looked at file."
   	(set-buffer-modified-p nil)))
   (kill-buffer look-buffer)		; clear the look-buffer
   (switch-to-buffer look-buffer)	; reopen the look-buffer
-  
-  ;; Don't kill the look-buffer, otherwise `policy-switch-buffer-restore-p'
-  ;; returns t and `policy-switch-config-split-windows' cannot restore it
-  ;; However I can't get this to work with `image-mode' yet
-  ;;(switch-to-buffer look-buffer)
-  ;;(read-only-mode -1)
-  ;;(erase-buffer)
   (if file
       (progn
-	(insert-file-contents file) ; insert it into the *look* buffer
 	(setq buffer-file-name file)
-	(normal-mode)
-	(if (eq major-mode (default-value 'major-mode))
-	    (look-set-mode-with-auto-mode-alist t))
+	(find-file-noselect-1 look-buffer file nil nil nil
+			      (nthcdr 10 (file-attributes file)))
 	(look-update-header-line)
 	;; try to apply file settings if available
 	(condition-case err
