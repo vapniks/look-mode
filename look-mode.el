@@ -505,16 +505,18 @@ If prefix arg ARG is non-nil remove files that do match PRED."
   "Insert FILE into `look-buffer' and set mode appropriately.
 When called interactively reload currently looked at file."
   (interactive (list look-current-file))
-  ;;(with-current-buffer look-buffer
-  ;;  (if (memq major-mode '(doc-view-mode pdf-view-mode image-mode))
-  ;;	(set-buffer-modified-p nil)))
-  ;;(kill-buffer look-buffer)		; clear the look-buffer
-  ;;(switch-to-buffer look-buffer)	; reopen the look-buffer
+  (with-current-buffer look-buffer
+    (if (memq major-mode '(doc-view-mode pdf-view-mode image-mode))
+  	(set-buffer-modified-p nil)))
+  (kill-buffer look-buffer)		; clear the look-buffer
+  (switch-to-buffer look-buffer)	; reopen the look-buffer
+  
   ;; Don't kill the look-buffer, otherwise `policy-switch-buffer-restore-p'
   ;; returns t and `policy-switch-config-split-windows' cannot restore it
-  (switch-to-buffer look-buffer)
-  (read-only-mode -1)
-  (erase-buffer)
+  ;; However I can't get this to work with `image-mode' yet
+  ;;(switch-to-buffer look-buffer)
+  ;;(read-only-mode -1)
+  ;;(erase-buffer)
   (if file
       (progn
 	(insert-file-contents file) ; insert it into the *look* buffer
@@ -524,11 +526,13 @@ When called interactively reload currently looked at file."
 	    (look-set-mode-with-auto-mode-alist t))
 	(look-update-header-line)
 	;; try to apply file settings if available
-	(if (and (assoc major-mode look-file-settings-templates)
-		 (assoc look-current-file look-file-settings))
-	    (eval (cdr (assoc look-current-file look-file-settings)))
-	  (if (assoc major-mode look-default-file-settings)
-	      (eval (cdr (assoc major-mode look-default-file-settings))))))
+	(condition-case err
+	    (if (and (assoc major-mode look-file-settings-templates)
+		     (assoc look-current-file look-file-settings))
+		(eval (cdr (assoc look-current-file look-file-settings)))
+	      (if (assoc major-mode look-default-file-settings)
+		  (eval (cdr (assoc major-mode look-default-file-settings)))))
+	  (error (message "%S %S" (car err) (cdr err)))))
     (look-no-more))
   (look-mode))
 
