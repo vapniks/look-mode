@@ -309,7 +309,7 @@ Discards the file from the list if it is not a regular file or symlink to one.
 With prefix arg get the ARG'th next file in the list.
 Unless NOSAVE is non-nil then the settings for the current file will be added
 to `look-file-settings'."
-  (interactive (list current-prefix-arg nil)) ; pass no args on interactive call
+  (interactive (list current-prefix-arg nil)) 
   (if (and look-current-file
 	   (not nosave)
 	   (assoc major-mode look-file-settings-templates))
