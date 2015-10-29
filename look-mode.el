@@ -303,12 +303,15 @@ otherwise they replace them."
   (get-buffer-create look-buffer)
   (look-at-next-file))
 
-(defun look-at-next-file (&optional arg)
+(defun look-at-next-file (&optional arg nosave)
   "Gets the next file in the list.
 Discards the file from the list if it is not a regular file or symlink to one.
-With prefix arg get the ARG'th next file in the list."
-  (interactive "p")		    ; pass no args on interactive call
+With prefix arg get the ARG'th next file in the list.
+Unless NOSAVE is non-nil then the settings for the current file will be added
+to `look-file-settings'."
+  (interactive (list current-prefix-arg nil)) ; pass no args on interactive call
   (if (and look-current-file
+	   (not nosave)
 	   (assoc major-mode look-file-settings-templates))
       (let ((info (eval (cdr (assoc major-mode look-file-settings-templates))))
 	    (item (assoc look-current-file look-file-settings)))
@@ -323,11 +326,14 @@ With prefix arg get the ARG'th next file in the list."
 				(pop look-forward-file-list))))
   (look-at-this-file look-current-file))
 
-(defun look-at-previous-file (&optional arg)
+(defun look-at-previous-file (&optional arg nosave)
   "Gets the previous file in the list.
-With prefix arg get the ARG'th previous file in the list."
-  (interactive "p"); pass no args on interactive call
+With prefix arg get the ARG'th previous file in the list.
+Unless NOSAVE is non-nil then the settings for the current
+file will be added to `look-file-settings'."
+  (interactive (list current-prefix-arg nil)); pass no args on interactive call
   (if (and look-current-file
+	   (not nosave)
 	   (assoc major-mode look-file-settings-templates))
       (let ((info (eval (cdr (assoc major-mode look-file-settings-templates))))
 	    (item (assoc look-current-file look-file-settings)))
@@ -366,34 +372,40 @@ and will become the new currently looked at file."
 	look-current-file file)
   (look-at-this-file look-current-file))
 
-(defun look-at-nth-file (n)
+(defun look-at-nth-file (n nosave)
   "Look at the N'th file in the list.
 If N is negative count backwards from the end of the list.
 With 0 being the first file, and -1 being the last file,
--2 the second last file, etc."
+-2 the second last file, etc.
+Unless NOSAVE is non-nil then the settings for the current
+file will be added to `look-file-settings'."
   (interactive (list (or current-prefix-arg
-			 (read-number "Goto position in list (-ve No.s count backwards from end): "))))
+			 (read-number "Goto position in list (-ve No.s count backwards from end): "))
+		     nil))
   (let ((nback (length look-reverse-file-list))
 	(nforward (length look-forward-file-list)))
     (cond ((not (integerp n)) (error "N must be an integer"))
 	  ((> n (+ nback nforward)) (error "N too large"))
-	  ((>= n nback) (look-at-next-file (- n nback)))
-	  ((>= n 0) (look-at-previous-file (- nback n)))
+	  ((>= n nback) (look-at-next-file (- n nback) nosave))
+	  ((>= n 0) (look-at-previous-file (- nback n) nosave))
 	  ((< n (- (+ 1 nback nforward))) (error "N too small"))
-	  (t (look-at-nth-file (+ n 1 nback nforward))))))
+	  (t (look-at-nth-file (+ n 1 nback nforward) nosave)))))
 
-(defun look-at-specific-file (file)
-  "Jump to a specific FILE in the `look-mode' list."
+(defun look-at-specific-file (file nosave)
+  "Jump to a specific FILE in the `look-mode' list.
+Unless NOSAVE is non-nil, or a prefix arg is used, then the settings 
+for the current file will be added to `look-file-settings'."
   (interactive (list (ido-completing-read
 		      "File: "
 		      (append look-reverse-file-list look-forward-file-list)
-		      nil t)))
+		      nil t) current-prefix-arg))
   (if (member file look-reverse-file-list)
-      (look-at-nth-file (cl-position file look-reverse-file-list :test 'equal))
+      (look-at-nth-file (cl-position file look-reverse-file-list :test 'equal)
+			nosave)
     (if (member file look-forward-file-list)
 	(look-at-nth-file (+ (length look-reverse-file-list)
 			     (cl-position file look-forward-file-list :test 'equal)
-			     1)))))
+			     1) nosave))))
 
 (defun look-re-search-forward (regex)
   "Search forward through looked at files for REGEX."
