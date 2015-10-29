@@ -81,6 +81,7 @@
 
 ;;; Requirements:
 (require 'ido-choose-function)
+(require 'cl-lib)
 
 ;;; Code:
 
@@ -519,15 +520,19 @@ When called interactively reload currently looked at file."
 			      (nthcdr 10 (file-attributes file)))
 	(look-update-header-line)
 	;; try to apply file settings if available
-	(condition-case err
-	    (if (and (assoc major-mode look-file-settings-templates)
-		     (assoc look-current-file look-file-settings))
-		(eval (cdr (assoc look-current-file look-file-settings)))
-	      (if (assoc major-mode look-default-file-settings)
-		  (eval (cdr (assoc major-mode look-default-file-settings)))))
-	  (error (message "%S %S" (car err) (cdr err)))))
+	(look-apply-file-settings))
     (look-no-more))
   (look-mode))
+
+(defun look-apply-file-settings nil
+  "Apply file settings in `look-file-settings'."
+  (condition-case err
+      (if (and (assoc major-mode look-file-settings-templates)
+	       (assoc look-current-file look-file-settings))
+	  (eval (cdr (assoc look-current-file look-file-settings)))
+	(if (assoc major-mode look-default-file-settings)
+	    (eval (cdr (assoc major-mode look-default-file-settings)))))
+    (error (message "%S %S" (car err) (cdr err)))))
 
 (defun look-keep-header-on-top (window start)
   "Used by `look-update-header-line' to keep overlay at top of buffer.
