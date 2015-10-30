@@ -168,25 +168,23 @@ and whose cdr is an sexp to be evaluated in files with that mode."
   :group 'look)
 
 ;; Variables that make the code work
-(defvar look-file-settings nil
+(defvar-local look-file-settings nil
   "Alist of filenames and sexps to evaluate when the file is visited.")
-(defvar look-forward-file-list nil
+(defvar-local look-forward-file-list nil
   "List of files stored by the command look-at-files for future viewing.")
-(defvar look-reverse-file-list nil
+(defvar-local look-reverse-file-list nil
   "List of files stored by the command look-at-files for reverse lookup.")
-(defvar look-subdir-list nil
+(defvar-local look-subdir-list nil
   "Subdirectories found in the file listing.")
-(defvar look-hilight-subdir-index 1
+(defvar-local look-hilight-subdir-index 1
   "Subdirectory index to hilight.")
-(defvar look-current-file nil
+(defvar-local look-current-file nil
   "The file being viewed in the `look-buffer'.")
-(defvar look-pwd nil
+(defvar-local look-pwd nil
   "The directory that look started in.")
-(defvar look-buffer "*look*"
-  "Default buffer for look mode.")
 ;;overlay code suggested by Martin Rudalics
 ;;http://lists.gnu.org/archive/html/bug-gnu-emacs/2008-12/msg00195.html
-(defvar look-header-overlay (make-overlay (point-min) (point-min))
+(defvar-local look-header-overlay (make-overlay (point-min) (point-min))
   "Makes overlay at top of buffer.")
 (defvar look-minor-mode-map
   (let ((map (make-sparse-keymap)))
@@ -238,28 +236,43 @@ and whose cdr is an sexp to be evaluated in files with that mode."
 
 ;;;; Navigation Commands
 
-(defun look-at-files (look-wildcard &optional add)
-  "Look at files in directory. Insert into temporary buffer one at a time.
+(defun look-buffer-list nil
+  "Return a list of names of `look-mode' buffers."
+  (cl-loop for buf in (buffer-list)
+	   when (with-current-buffer buf look-mode)
+	   collect (buffer-name buf)))
+
+(defun look-at-files (look-wildcard &optional add name)
+  "Look at files in directory and insert into temporary buffer one at a time.
 This function gets the file list by expanding LOOK-WILDCARD with
  `file-expand-wildcards', and passes it to `look-at-next-file'.
 If ADD is non-nil then files are added to the end of the currently looked at files, 
-otherwise they replace them."
-  (interactive (list (read-from-minibuffer "Enter filename (w/ wildcards): ")
-		     (if (or look-forward-file-list look-reverse-file-list)
-			 (y-or-n-p "Add to current list of looked at files? "))))
+otherwise they replace them. By default the new buffer is called \"*look*<N>\" 
+where N is some integer to make the buffer name unique. Y
+NAME is the name of the *look* buffer to use."
+  (interactive (let* ((wildcard (read-from-minibuffer "Enter filename (w/ wildcards): "))
+		      (name (ido-completing-read
+			     "Look buffer: "
+			     (append '("new buffer") (look-buffer-list))))
+		      (add (not (equal name "new buffer")))
+		      (name2 (if add name
+			       (generate-new-buffer-name
+				(read-string "Look buffer name: " "*look*:")))))
+		 (list wildcard add name2)))
   (if (and (string-match "[Jj][Pp][Ee]?[Gg]" look-wildcard)
            (not (featurep 'eimp)))
       (require 'eimp nil t))
-  (if (string= look-wildcard "")
-      (setq look-wildcard "*"))
+  (if (string= look-wildcard "") (setq look-wildcard "*"))
+  ;; get look buffer
+  (get-buffer-create (or name (generate-new-buffer-name "*look*")))
+  ;; reset buffer local variables
   (if (not add) (setq look-forward-file-list nil
 		      look-reverse-file-list nil
 		      look-current-file nil))
   (setq look-subdir-list (list "./")
-	look-pwd (replace-regexp-in-string
-		  "~" (getenv "HOME")
-		  (replace-regexp-in-string
-		   "^Directory " "" (pwd))))
+	look-pwd (replace-regexp-in-string "~" (getenv "HOME")
+					   (replace-regexp-in-string "^Directory " "" (pwd))))
+  ;; get file names
   (let ((look-file-list (file-expand-wildcards look-wildcard))
         (fullpath-dir-list nil))
     ;; use relative file names to prevent weird side effects with skip lists
@@ -300,7 +313,6 @@ otherwise they replace them."
             (nconc look-subdir-list
                    (list (file-name-as-directory
                           (replace-regexp-in-string look-pwd "" fullpath)))))))	;tel
-  (get-buffer-create look-buffer)
   (look-at-next-file))
 
 (defun look-at-next-file (&optional arg nosave)
