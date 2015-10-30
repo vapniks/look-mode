@@ -344,7 +344,7 @@ to `look-file-settings'."
     (setq look-current-file (if look-forward-file-list
 				;; get the next file in the list
 				(pop look-forward-file-list))))
-  (look-at-this-file look-current-file))
+  (look-at-this-file))
 
 (defun look-at-previous-file (&optional arg nosave)
   "Gets the previous file in the list.
@@ -367,7 +367,7 @@ file will be added to `look-file-settings'."
     (setq look-current-file (if look-reverse-file-list
 				;; get the next file in the list
 				(pop look-reverse-file-list))))
-  (look-at-this-file look-current-file))
+  (look-at-this-file))
 
 (defun look-remove-this-file nil
   "Remove the currently looked at file from the list."
@@ -379,7 +379,7 @@ file will be added to `look-file-settings'."
 	      (pop look-reverse-file-list)
 	    (if look-forward-file-list
 		(pop look-reverse-file-list))))
-    (look-at-this-file look-current-file)))
+    (look-at-this-file)))
 
 (defun look-insert-file (file)
   "Insert FILE into the list of looked at files.
@@ -393,7 +393,7 @@ and will become the new currently looked at file."
   (setq look-reverse-file-list
 	(cons look-current-file look-reverse-file-list)
 	look-current-file file)
-  (look-at-this-file look-current-file))
+  (look-at-this-file))
 
 (defun look-at-nth-file (n nosave)
   "Look at the N'th file in the list.
@@ -544,19 +544,19 @@ If prefix arg ARG is non-nil remove files that do match PRED."
 	  look-current-file (if (if (funcall pred look-current-file)
 				    (not arg) arg)
 				look-current-file))
-    (look-at-this-file look-current-file)))
+    (look-at-this-file)))
 
 ;;;; subroutines
 
-(defun look-at-this-file (file)
+(defun look-at-this-file nil
   "Insert FILE into current buffer and set mode appropriately.
 When called interactively reload currently looked at file."
-  (interactive (list look-current-file))
   (look-check-current-buffer)
   (if (memq major-mode '(doc-view-mode pdf-view-mode image-mode))
       (set-buffer-modified-p nil))
   (let ((name (buffer-name))
 	;; save buffer-local variables
+	(current-file look-current-file)
 	(reverse-list look-reverse-file-list)
 	(forward-list look-forward-file-list)
 	(settings look-file-settings)
@@ -567,7 +567,7 @@ When called interactively reload currently looked at file."
     (switch-to-buffer name)		; reopen it
     (cl-symbol-macrolet
 	;; restore buffer-local variables
-	((restore-locals (setq look-current-file file
+	((restore-locals (setq look-current-file current-file
 			       look-reverse-file-list reverse-list
 			       look-forward-file-list forward-list
 			       look-file-settings settings
@@ -575,11 +575,11 @@ When called interactively reload currently looked at file."
 			       look-subdir-list subdir
 			       look-header-overlay overlay)))
       restore-locals
-      (if (not file)
+      (if (not current-file)
 	  (look-no-more)
-	(setq buffer-file-name file)
-	(find-file-noselect-1 name file nil nil nil
-			      (nthcdr 10 (file-attributes file)))
+	(setq buffer-file-name current-file)
+	(find-file-noselect-1 name current-file nil nil nil
+			      (nthcdr 10 (file-attributes current-file)))
 	;; need restore buffer-local variables again since `find-file-noselect-1' resets them
 	restore-locals
 	(look-update-header-line)
