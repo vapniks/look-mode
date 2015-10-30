@@ -561,14 +561,15 @@ Argument WINDOW not used.  Argument START is the start position."
 (defun look-update-header-line nil
   "Defines the header line for function `look-mode'."
   (let* ((relfilename (replace-regexp-in-string look-pwd "" look-current-file))
-	 (look-header-line (lface-header
-                           (concat "["
-                                   (number-to-string (length look-reverse-file-list))
-                                   "| "
-                                   (substring relfilename (max (- 10 (frame-width))
-							       (- (length relfilename))))
-                                   " |"
-                                   (number-to-string (length look-forward-file-list)) "]")))
+	 (look-header-line
+	  (lface-header
+	   (concat "["
+		   (number-to-string (length look-reverse-file-list))
+		   "| "
+		   (substring relfilename (max (- 10 (frame-width))
+					       (- (length relfilename))))
+		   " |"
+		   (number-to-string (length look-forward-file-list)) "]")))
         (jj 1))
     (if look-show-subdirs
         ; list all but the first item in look-subdir-list
@@ -586,7 +587,8 @@ Argument WINDOW not used.  Argument START is the start position."
           (setq jj (1+ jj))))
     (overlay-put look-header-overlay 'before-string (concat look-header-line
                                                             (lface-header "\n")))
-    (move-overlay look-header-overlay (window-start) (window-start) (get-buffer look-buffer))
+    (move-overlay look-header-overlay
+		  (window-start) (window-start) (get-buffer look-buffer))
     (add-hook 'window-scroll-functions 'look-keep-header-on-top nil t)))
   
 (defun look-no-more nil
