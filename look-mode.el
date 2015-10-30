@@ -124,7 +124,7 @@
 		     (set-window-hscroll nil ,(window-hscroll)))))
   "Extra information used by `look-at-this-file' to display files.
 This is a alist whose keys are `major-mode' symbols, and whose
-values are sexps to be evaluated in the `look-buffer' for saving
+values are sexps to be evaluated in a `look-mode' buffer for saving
 extra information such as image size, page number, etc.
 The sexp should return another sexp that sets the image size,
 page number etc, and will be evaluated when the file is visited again."
@@ -179,7 +179,7 @@ and whose cdr is an sexp to be evaluated in files with that mode."
 (defvar-local look-hilight-subdir-index 1
   "Subdirectory index to hilight.")
 (defvar-local look-current-file nil
-  "The file being viewed in the `look-buffer'.")
+  "The file being viewed in the `look-mode' buffer.")
 (defvar-local look-pwd nil
   "The directory that look started in.")
 ;;overlay code suggested by Martin Rudalics
@@ -224,15 +224,12 @@ and whose cdr is an sexp to be evaluated in files with that mode."
 (defun look-reset-variables ()
   "Re-initializes look-mode's variables."
   (interactive)
-  (setq look-forward-file-list nil)
-  (setq look-reverse-file-list nil)
-  (setq look-subdir-list nil)
-  (setq look-skip-file-list '(".zip$"))
-  (setq look-skip-directory-list nil)
-  (setq look-show-subdirs nil)
-  (setq look-current-file nil)
-  (setq look-file-settings nil)
-  (setq look-buffer "*look*"))
+  (setq look-forward-file-list nil
+	look-reverse-file-list nil
+	look-current-file nil
+	look-subdir-list nil
+	look-pwd nil
+	look-file-settings nil))
 
 ;;;; Navigation Commands
 
@@ -337,7 +334,8 @@ to `look-file-settings'."
       (let ((info (eval (cdr (assoc major-mode look-file-settings-templates))))
 	    (item (assoc look-current-file look-file-settings)))
 	(if item (setcdr item info)
-	  (add-to-list 'look-file-settings (cons look-current-file info)))))
+	  (add-to-list 'look-file-settings
+		       (cons look-current-file info)))))
   (dotimes (i (or arg 1))
     (if (and look-current-file
 	     (or (eq i 0) look-forward-file-list))
@@ -417,7 +415,7 @@ file will be added to `look-file-settings'."
 	  (t (look-at-nth-file (+ n 1 nback nforward) nosave)))))
 
 (defun look-at-specific-file (file nosave)
-  "Jump to a specific FILE in the `look-mode' list.
+  "Jump to a specific FILE in the `look-mode' file list.
 Unless NOSAVE is non-nil, or a prefix arg is used, then the settings 
 for the current file will be added to `look-file-settings'."
   (interactive (list (ido-completing-read
@@ -550,25 +548,24 @@ If prefix arg ARG is non-nil remove files that do match PRED."
 ;;;; subroutines
 
 (defun look-at-this-file (file)
-  "Insert FILE into `look-buffer' and set mode appropriately.
+  "Insert FILE into current buffer and set mode appropriately.
 When called interactively reload currently looked at file."
   (interactive (list look-current-file))
   (look-check-current-buffer)
-  (with-current-buffer look-buffer
-    (if (memq major-mode '(doc-view-mode pdf-view-mode image-mode))
-  	(set-buffer-modified-p nil)))
-  (kill-buffer look-buffer)		; clear the look-buffer
-  (switch-to-buffer look-buffer)	; reopen the look-buffer
-  (if file
-      (progn
-	(setq buffer-file-name file)
-	(find-file-noselect-1 look-buffer file nil nil nil
-			      (nthcdr 10 (file-attributes file)))
-	(look-update-header-line)
-	;; try to apply file settings if available
-	(look-apply-file-settings))
-    (look-no-more))
-  (look-mode))
+  (if (memq major-mode '(doc-view-mode pdf-view-mode image-mode))
+      (set-buffer-modified-p nil))
+  (let ((name (buffer-name)))  
+    (kill-buffer name)			; clear the buffer
+    (switch-to-buffer name)		; reopen it
+    (if (not file)
+	(look-no-more)
+      (setq buffer-file-name file)
+      (find-file-noselect-1 name file nil nil nil
+			    (nthcdr 10 (file-attributes file)))
+      (look-update-header-line)
+      ;; try to apply file settings if available
+      (look-apply-file-settings))
+    (look-mode)))
 
 (defun look-apply-file-settings nil
   "Apply file settings in `look-file-settings'."
@@ -625,7 +622,7 @@ Argument WINDOW not used.  Argument START is the start position."
     (overlay-put look-header-overlay 'before-string (concat look-header-line
                                                             (lface-header "\n")))
     (move-overlay look-header-overlay
-		  (window-start) (window-start) (get-buffer look-buffer))
+		  (window-start) (window-start) (current-buffer))
     (add-hook 'window-scroll-functions 'look-keep-header-on-top nil t)))
   
 (defun look-no-more nil
