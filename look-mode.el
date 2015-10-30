@@ -242,14 +242,22 @@ and whose cdr is an sexp to be evaluated in files with that mode."
 	   when (with-current-buffer buf look-mode)
 	   collect (buffer-name buf)))
 
+(defun look-check-current-buffer nil
+  "Check that the current buffer is a `look-mode' buffer.
+Throw an error if it's not."
+  (if (not look-mode)
+      (error "Current buffer is not a `look-mode' buffer")))
+
 (defun look-at-files (look-wildcard &optional add name)
   "Look at files in directory and insert into temporary buffer one at a time.
 This function gets the file list by expanding LOOK-WILDCARD with
  `file-expand-wildcards', and passes it to `look-at-next-file'.
-If ADD is non-nil then files are added to the end of the currently looked at files, 
-otherwise they replace them. By default the new buffer is called \"*look*<N>\" 
-where N is some integer to make the buffer name unique. Y
-NAME is the name of the *look* buffer to use."
+When called interactively the name of an existing look buffer or new buffer 
+is prompted for. If an existing look buffer is chosen then the files will be 
+added to those in that buffer. 
+When called programmatically, if ADD is non-nil then files are added to the 
+end of the currently looked at files in buffer NAME (default \"*look*<N>\"),
+otherwise they replace them."
   (interactive (let* ((wildcard (read-from-minibuffer "Enter filename (w/ wildcards): "))
 		      (name (ido-completing-read
 			     "Look buffer: "
@@ -321,7 +329,8 @@ Discards the file from the list if it is not a regular file or symlink to one.
 With prefix arg get the ARG'th next file in the list.
 Unless NOSAVE is non-nil then the settings for the current file will be added
 to `look-file-settings'."
-  (interactive (list current-prefix-arg nil)) 
+  (interactive (list current-prefix-arg nil))
+  (look-check-current-buffer)
   (if (and look-current-file
 	   (not nosave)
 	   (assoc major-mode look-file-settings-templates))
@@ -344,6 +353,7 @@ With prefix arg get the ARG'th previous file in the list.
 Unless NOSAVE is non-nil then the settings for the current
 file will be added to `look-file-settings'."
   (interactive (list current-prefix-arg nil)); pass no args on interactive call
+  (look-check-current-buffer)  
   (if (and look-current-file
 	   (not nosave)
 	   (assoc major-mode look-file-settings-templates))
@@ -363,6 +373,7 @@ file will be added to `look-file-settings'."
 (defun look-remove-this-file nil
   "Remove the currently looked at file from the list."
   (interactive)
+  (look-check-current-buffer)
   (unless (not (y-or-n-p "Remove current file? "))
     (setq look-current-file
 	  (if look-reverse-file-list	;remove the current file
@@ -379,6 +390,7 @@ and will become the new currently looked at file."
 		      "File: "
 		      (if look-current-file
 			  (file-name-directory look-current-file)))))
+  (look-check-current-buffer)
   (setq look-reverse-file-list
 	(cons look-current-file look-reverse-file-list)
 	look-current-file file)
@@ -394,6 +406,7 @@ file will be added to `look-file-settings'."
   (interactive (list (or current-prefix-arg
 			 (read-number "Goto position in list (-ve No.s count backwards from end): "))
 		     nil))
+  (look-check-current-buffer)
   (let ((nback (length look-reverse-file-list))
 	(nforward (length look-forward-file-list)))
     (cond ((not (integerp n)) (error "N must be an integer"))
@@ -411,6 +424,7 @@ for the current file will be added to `look-file-settings'."
 		      "File: "
 		      (append look-reverse-file-list look-forward-file-list)
 		      nil t) current-prefix-arg))
+  (look-check-current-buffer)
   (if (member file look-reverse-file-list)
       (look-at-nth-file (cl-position file look-reverse-file-list :test 'equal)
 			nosave)
@@ -422,6 +436,7 @@ for the current file will be added to `look-file-settings'."
 (defun look-re-search-forward (regex)
   "Search forward through looked at files for REGEX."
   (interactive (list (read-regexp "Regexp: ")))
+  (look-check-current-buffer)
   (while (and look-current-file
 	      (not (case major-mode
 		     (pdf-view-mode (pdf-isearch-search-function regex))
@@ -432,6 +447,7 @@ for the current file will be added to `look-file-settings'."
 (defun look-re-search-backward (regex)
   "Search backward through looked at files for REGEX."
   (interactive (list (read-regexp "Regexp: ")))
+  (look-check-current-buffer)
   (while (and look-current-file
 	      (not (case major-mode
 		     (pdf-view-mode (pdf-isearch-search-function regex))
@@ -444,6 +460,7 @@ for the current file will be added to `look-file-settings'."
 PRED is a function of two arguments (filenames) as used by `sort' (which see)."
   (interactive (list (ido-choose-function
 		      look-sort-predicates "Sort predicate: " "Sort function (2 args): ")))
+  (look-check-current-buffer)
   (let* ((allfiles (append (reverse look-reverse-file-list)
 			   (if look-current-file
 			       (list look-current-file))
@@ -462,6 +479,7 @@ PRED is a function of two arguments (filenames) as used by `sort' (which see)."
 (defun look-reverse-files nil
   "Reverse the order of the looked at files."
   (interactive)
+  (look-check-current-buffer)
   (let* ((files (reverse (append (reverse look-reverse-file-list)
 				 (if look-current-file (list look-current-file))
 				 look-forward-file-list)))
@@ -479,6 +497,7 @@ PRED is a function of two arguments (filenames) as used by `sort' (which see)."
   (interactive (list
 		(read-number
 		 "Move to position (-ve No.s count backwards from end): ")))
+  (look-check-current-buffer)
   (let* ((files (append (reverse look-reverse-file-list)
 			look-forward-file-list))
 	 (nback (length look-reverse-file-list))
@@ -501,6 +520,7 @@ PRED is a function of two arguments (filenames) as used by `sort' (which see)."
 Note: this will not change the settings for the currently
 looked at file."
   (interactive)
+  (look-check-current-buffer)
   (setq look-file-settings nil))
 
 (defun look-customize-defaults nil
@@ -518,6 +538,7 @@ If prefix arg ARG is non-nil remove files that do match PRED."
 		      "Filter by: "
 		      "Filter function (1 arg): " t)
 		     current-prefix-arg))
+  (look-check-current-buffer)
   (let ((func (if arg 'cl-remove-if 'cl-remove-if-not)))
     (setq look-forward-file-list (funcall func pred look-forward-file-list)
 	  look-reverse-file-list (funcall func pred look-reverse-file-list)
@@ -532,6 +553,7 @@ If prefix arg ARG is non-nil remove files that do match PRED."
   "Insert FILE into `look-buffer' and set mode appropriately.
 When called interactively reload currently looked at file."
   (interactive (list look-current-file))
+  (look-check-current-buffer)
   (with-current-buffer look-buffer
     (if (memq major-mode '(doc-view-mode pdf-view-mode image-mode))
   	(set-buffer-modified-p nil)))
@@ -550,6 +572,7 @@ When called interactively reload currently looked at file."
 
 (defun look-apply-file-settings nil
   "Apply file settings in `look-file-settings'."
+  (look-check-current-buffer)
   (condition-case err
       (if (and (assoc major-mode look-file-settings-templates)
 	       (assoc look-current-file look-file-settings))
@@ -561,6 +584,7 @@ When called interactively reload currently looked at file."
 (defun look-keep-header-on-top (window start)
   "Used by `look-update-header-line' to keep overlay at top of buffer.
 Argument WINDOW not used.  Argument START is the start position."
+  (look-check-current-buffer)
   (move-overlay look-header-overlay start start))
 
 (defun lface-header (text)
@@ -572,6 +596,7 @@ Argument WINDOW not used.  Argument START is the start position."
 
 (defun look-update-header-line nil
   "Defines the header line for function `look-mode'."
+  (look-check-current-buffer)
   (let* ((relfilename (replace-regexp-in-string look-pwd "" look-current-file))
 	 (look-header-line
 	  (lface-header
@@ -605,6 +630,7 @@ Argument WINDOW not used.  Argument START is the start position."
   
 (defun look-no-more nil
   "What to do when one gets to the end of a file list."
+  (look-check-current-buffer)
   (setq look-current-file nil)
   (if look-forward-file-list
       (setq header-line-format
