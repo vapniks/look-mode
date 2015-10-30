@@ -176,7 +176,7 @@ and whose cdr is an sexp to be evaluated in files with that mode."
   "List of files stored by the command look-at-files for reverse lookup.")
 (defvar-local look-subdir-list nil
   "Subdirectories found in the file listing.")
-(defvar-local look-hilight-subdir-index 1
+(defvar look-hilight-subdir-index 1
   "Subdirectory index to hilight.")
 (defvar-local look-current-file nil
   "The file being viewed in the `look-mode' buffer.")
@@ -249,10 +249,10 @@ Throw an error if it's not."
   "Look at files in directory and insert into temporary buffer one at a time.
 This function gets the file list by expanding LOOK-WILDCARD with
  `file-expand-wildcards', and passes it to `look-at-next-file'.
-When called interactively the name of an existing look buffer or new buffer 
-is prompted for. If an existing look buffer is chosen then the files will be 
-added to those in that buffer. 
-When called programmatically, if ADD is non-nil then files are added to the 
+When called interactively the name of an existing look buffer or new buffer
+is prompted for. If an existing look buffer is chosen then the files will be
+added to those in that buffer.
+When called programmatically, if ADD is non-nil then files are added to the
 end of the currently looked at files in buffer NAME (default \"*look*<N>\"),
 otherwise they replace them."
   (interactive (let* ((wildcard (read-from-minibuffer "Enter filename (w/ wildcards): "))
@@ -269,14 +269,14 @@ otherwise they replace them."
       (require 'eimp nil t))
   (if (string= look-wildcard "") (setq look-wildcard "*"))
   ;; get look buffer
-  (get-buffer-create (or name (generate-new-buffer-name "*look*")))
+  (switch-to-buffer (or name (generate-new-buffer-name "*look*")))
   ;; reset buffer local variables
   (if (not add) (setq look-forward-file-list nil
 		      look-reverse-file-list nil
 		      look-current-file nil))
   (setq look-subdir-list (list "./")
-	look-pwd (replace-regexp-in-string "~" (getenv "HOME")
-					   (replace-regexp-in-string "^Directory " "" (pwd))))
+	look-pwd (replace-regexp-in-string
+		  "~" (getenv "HOME") (replace-regexp-in-string "^Directory " "" (pwd))))
   ;; get file names
   (let ((look-file-list (file-expand-wildcards look-wildcard))
         (fullpath-dir-list nil))
@@ -317,7 +317,8 @@ otherwise they replace them."
       (setq look-subdir-list
             (nconc look-subdir-list
                    (list (file-name-as-directory
-                          (replace-regexp-in-string look-pwd "" fullpath)))))))	;tel
+                          (replace-regexp-in-string look-pwd "" fullpath)))))))
+  (look-mode)
   (look-at-next-file))
 
 (defun look-at-next-file (&optional arg nosave)
@@ -554,22 +555,40 @@ When called interactively reload currently looked at file."
   (look-check-current-buffer)
   (if (memq major-mode '(doc-view-mode pdf-view-mode image-mode))
       (set-buffer-modified-p nil))
-  (let ((name (buffer-name)))  
+  (let ((name (buffer-name))
+	;; save buffer-local variables
+	(reverse-list look-reverse-file-list)
+	(forward-list look-forward-file-list)
+	(settings look-file-settings)
+	(pwd look-pwd)
+	(subdir look-subdir-list)
+	(overlay look-header-overlay))
     (kill-buffer name)			; clear the buffer
     (switch-to-buffer name)		; reopen it
-    (if (not file)
-	(look-no-more)
-      (setq buffer-file-name file)
-      (find-file-noselect-1 name file nil nil nil
-			    (nthcdr 10 (file-attributes file)))
-      (look-update-header-line)
-      ;; try to apply file settings if available
-      (look-apply-file-settings))
+    (cl-symbol-macrolet
+	;; restore buffer-local variables
+	((restore-locals (setq look-current-file file
+			       look-reverse-file-list reverse-list
+			       look-forward-file-list forward-list
+			       look-file-settings settings
+			       look-pwd pwd
+			       look-subdir-list subdir
+			       look-header-overlay overlay)))
+      restore-locals
+      (if (not file)
+	  (look-no-more)
+	(setq buffer-file-name file)
+	(find-file-noselect-1 name file nil nil nil
+			      (nthcdr 10 (file-attributes file)))
+	;; need restore buffer-local variables again since `find-file-noselect-1' resets them
+	restore-locals
+	(look-update-header-line)
+	;; try to apply file settings if available
+	(look-apply-file-settings)))
     (look-mode)))
 
 (defun look-apply-file-settings nil
   "Apply file settings in `look-file-settings'."
-  (look-check-current-buffer)
   (condition-case err
       (if (and (assoc major-mode look-file-settings-templates)
 	       (assoc look-current-file look-file-settings))
@@ -593,8 +612,8 @@ Argument WINDOW not used.  Argument START is the start position."
 
 (defun look-update-header-line nil
   "Defines the header line for function `look-mode'."
-  (look-check-current-buffer)
-  (let* ((relfilename (replace-regexp-in-string look-pwd "" look-current-file))
+  (let* ((relfilename (replace-regexp-in-string
+		       look-pwd "" look-current-file))
 	 (look-header-line
 	  (lface-header
 	   (concat "["
@@ -627,7 +646,6 @@ Argument WINDOW not used.  Argument START is the start position."
   
 (defun look-no-more nil
   "What to do when one gets to the end of a file list."
-  (look-check-current-buffer)
   (setq look-current-file nil)
   (if look-forward-file-list
       (setq header-line-format
