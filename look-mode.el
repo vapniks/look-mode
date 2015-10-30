@@ -638,48 +638,6 @@ Argument WINDOW not used.  Argument START is the start position."
     (setq header-line-format
 	  "No more files to display.  Use look-at-previous-file (M-p or C-,[think:<]) to go back")))
 
-(defun look-set-mode-with-auto-mode-alist (&optional keep-mode-if-same)
-  "Taken shamelessly from `set-auto-mode' in files.el (which see).
-Uses the `look-current-file' to set the mode using `auto-mode-alist'."
-  (let ((name look-current-file)
-        (remote-id (file-remote-p look-current-file))
-        done
-        mode)
-    ;; Remove remote file name identification.
-    (when (and (stringp remote-id)
-               (string-match (regexp-quote remote-id) name))
-      (setq name (substring name (match-end 0))))
-    ;; Remove backup-suffixes from file name.
-    (setq name (file-name-sans-versions name))
-    (while name
-      ;; Find first matching alist entry.
-      (setq mode
-            (if (memq system-type '(vax-vms windows-nt cygwin))
-                ;; System is case-insensitive.
-                (let ((case-fold-search t))
-                  (assoc-default name auto-mode-alist
-                                 'string-match))
-              ;; System is case-sensitive.
-              (or
-               ;; First match case-sensitively.
-               (let ((case-fold-search nil))
-                 (assoc-default name auto-mode-alist
-                                'string-match))
-               ;; Fallback to case-insensitive match.
-               (and auto-mode-case-fold
-                    (let ((case-fold-search t))
-                      (assoc-default name auto-mode-alist
-                                     'string-match))))))
-      (if (and mode
-               (consp mode)
-               (cadr mode))
-          (setq mode (car mode)
-                name (substring name 0 (match-beginning 0)))
-        (setq name))
-      (when mode
-        (set-auto-mode-0 mode keep-mode-if-same)
-        (setq done t)))))
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; Generally useful, but here for now ;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
