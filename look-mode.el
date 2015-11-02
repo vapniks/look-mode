@@ -362,6 +362,7 @@ to `look-file-settings'."
 			("Reset file settings" . look-reset-file-settings)
 			("Goto nth file" . look-at-nth-file)
 			("Sort files" . look-sort-files)
+			("Reverse files" . look-reverse-files)
 			("Filter files" . look-filter-files))
 		      nil nil t)))
   (save-window-excursion
@@ -598,8 +599,6 @@ When called interactively reload currently looked at file."
 	(pwd look-pwd)
 	(subdir look-subdir-list)
 	(overlay look-header-overlay))
-    (kill-buffer name)			; clear the buffer
-    (switch-to-buffer name)		; reopen it
     (cl-symbol-macrolet
 	;; restore buffer-local variables
 	((restore-locals (setq look-current-file current-file
@@ -609,6 +608,8 @@ When called interactively reload currently looked at file."
 			       look-pwd pwd
 			       look-subdir-list subdir
 			       look-header-overlay overlay)))
+      (kill-buffer name)		; clear the buffer
+      (switch-to-buffer name)		; reopen it
       restore-locals
       (if (not current-file)
 	  (look-no-more)
@@ -619,8 +620,8 @@ When called interactively reload currently looked at file."
 	restore-locals
 	(look-update-header-line)
 	;; try to apply file settings if available
-	(look-apply-file-settings)))
-    (look-mode)))
+	(look-apply-file-settings)
+	(look-mode)))))
 
 (defun look-apply-file-settings nil
   "Apply file settings in `look-file-settings'."
