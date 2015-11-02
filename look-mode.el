@@ -554,7 +554,8 @@ If prefix arg ARG is non-nil remove files that do match PRED."
 
 (defun look-apply-to-frame (func &optional all &rest args)
   "Apply FUNC with optional ARGS to all active `look-mode' windows in this frame.
-If optional arg ALL is non-nil then apply to all active `look-mode' windows in all frames."
+If optional arg ALL is non-nil, or called interactively with a prefix arg, then 
+apply to all active `look-mode' windows in all frames."
   (interactive (list (ido-choose-function
 		      '(("Look at next file" . look-at-next-file)
 			("Look at previous file" . look-at-previous-file)
@@ -565,7 +566,8 @@ If optional arg ALL is non-nil then apply to all active `look-mode' windows in a
 			("Sort files" . look-sort-files)
 			("Reverse files" . look-reverse-files)
 			("Filter files" . look-filter-files))
-		      nil nil t)))
+		      nil nil t)
+		     current-prefix-arg))
   (let ((curbuf (buffer-name (current-buffer)))
 	(thisframe (selected-frame)))
     (cl-loop for buf in (look-live-buffers-list)
@@ -575,6 +577,20 @@ If optional arg ALL is non-nil then apply to all active `look-mode' windows in a
 	     do (progn (select-window window)
 		       (apply func args)))
     (select-window (get-buffer-window curbuf))))
+
+(defun look-at-next-file-all (&optional all)
+  "Apply `look-at-next-file' to all `look-mode' buffers in the current frame.
+If optional arg ALL is non-nil, or called interactively with a prefix arg, then 
+apply to all frames."
+  (interactive "P")
+  (look-apply-to-frame 'look-at-next-file all))
+
+(defun look-at-previous-file-all (&optional all)
+  "Apply `look-at-previous-file' to all `look-mode' buffers in the current frame.
+If optional arg ALL is non-nil, or called interactively with a prefix arg, then 
+apply to all frames."
+  (interactive "P")
+  (look-apply-to-frame 'look-at-previous-file all))
 
 ;;;; subroutines
 
