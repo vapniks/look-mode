@@ -352,48 +352,6 @@ to `look-file-settings'."
 				(pop look-forward-file-list))))
   (look-at-this-file))
 
-(defun look-apply-to-all (func &rest args)
-  "Apply FUNC with optional ARGS to all active `look-mode' windows."
-  (interactive (list (ido-choose-function
-		      '(("Look at next file" . look-at-next-file)
-			("Look at previous file" . look-at-previous-file)
-			("Remove current file" . look-remove-this-file)
-			("Insert file" . look-insert-file)
-			("Reset file settings" . look-reset-file-settings)
-			("Goto nth file" . look-at-nth-file)
-			("Sort files" . look-sort-files)
-			("Reverse files" . look-reverse-files)
-			("Filter files" . look-filter-files))
-		      nil nil t)))
-  (let ((curbuf (buffer-name (current-buffer))))
-    (cl-loop for buf in (look-live-buffers-list)
-	     for window = (get-buffer-window buf)
-	     do (progn (select-window window)
-		       (apply func args)))
-    (select-window (get-buffer-window curbuf))))
-
-(defun look-apply-to-frame (func &rest args)
-  "Apply FUNC with optional ARGS to all active `look-mode' windows in this frame."
-  (interactive (list (ido-choose-function
-		      '(("Look at next file" . look-at-next-file)
-			("Look at previous file" . look-at-previous-file)
-			("Remove current file" . look-remove-this-file)
-			("Insert file" . look-insert-file)
-			("Reset file settings" . look-reset-file-settings)
-			("Goto nth file" . look-at-nth-file)
-			("Sort files" . look-sort-files)
-			("Reverse files" . look-reverse-files)
-			("Filter files" . look-filter-files))
-		      nil nil t)))
-  (let ((curbuf (buffer-name (current-buffer)))
-	(thisframe (selected-frame)))
-    (cl-loop for buf in (look-live-buffers-list)
-	     for window = (get-buffer-window buf)
-	     if (eq (window-frame window) thisframe)
-	     do (progn (select-window window)
-		       (apply func args)))
-    (select-window (get-buffer-window curbuf))))
-
 (defun look-at-previous-file (&optional arg nosave)
   "Gets the previous file in the list.
 With prefix arg get the ARG'th previous file in the list.
@@ -593,6 +551,30 @@ If prefix arg ARG is non-nil remove files that do match PRED."
 				    (not arg) arg)
 				look-current-file))
     (look-at-this-file)))
+
+(defun look-apply-to-frame (func &optional all &rest args)
+  "Apply FUNC with optional ARGS to all active `look-mode' windows in this frame.
+If optional arg ALL is non-nil then apply to all active `look-mode' windows in all frames."
+  (interactive (list (ido-choose-function
+		      '(("Look at next file" . look-at-next-file)
+			("Look at previous file" . look-at-previous-file)
+			("Remove current file" . look-remove-this-file)
+			("Insert file" . look-insert-file)
+			("Reset file settings" . look-reset-file-settings)
+			("Goto nth file" . look-at-nth-file)
+			("Sort files" . look-sort-files)
+			("Reverse files" . look-reverse-files)
+			("Filter files" . look-filter-files))
+		      nil nil t)))
+  (let ((curbuf (buffer-name (current-buffer)))
+	(thisframe (selected-frame)))
+    (cl-loop for buf in (look-live-buffers-list)
+	     for window = (get-buffer-window buf)
+	     if (or all
+		    (eq (window-frame window) thisframe))
+	     do (progn (select-window window)
+		       (apply func args)))
+    (select-window (get-buffer-window curbuf))))
 
 ;;;; subroutines
 
