@@ -239,6 +239,12 @@ and whose cdr is an sexp to be evaluated in files with that mode."
 	   when (with-current-buffer buf look-mode)
 	   collect (buffer-name buf)))
 
+(defun look-live-buffers-list nil
+  "Return list of all active `look-mode' windows."
+  (cl-loop for buf in (look-buffer-list)
+	   if (window-live-p (get-buffer-window buf))
+	   collect buf))
+  
 (defun look-check-current-buffer nil
   "Check that the current buffer is a `look-mode' buffer.
 Throw an error if it's not."
@@ -346,6 +352,35 @@ to `look-file-settings'."
 				(pop look-forward-file-list))))
   (look-at-this-file))
 
+(defun look-apply-to-all (func &rest args)
+  "Apply FUNC to all active `look-mode' windows."
+  (interactive (list (ido-choose-function
+		      '(("Look at next file" . look-at-next-file)
+			("Look at previous file" . look-at-previous-file)
+			("Remove current file" . look-remove-this-file)
+			("Insert file" . look-insert-file)
+			("Reset file settings" . look-reset-file-settings)
+			("Goto nth file" . look-at-nth-file)
+			("Sort files" . look-sort-files)
+			("Filter files" . look-filter-files))
+		      nil nil t)))
+  (save-window-excursion
+    (cl-loop for buf in (look-live-buffers-list)
+	     do (with-current-buffer buf (apply func args)))))
+
+;; (defun look-at-next-file-all (&optional arg nosave)
+;;   "Applies `look-at-next-file' (which see) to all visible look buffers.
+;; Arguments are the same as for `look-at-next-file'."
+;;   (interactive (list current-prefix-arg nil))
+  
+;;   (dolist (buf (look-buffer-list))
+;;     (if (and (buffer-live-p )))
+;;     )
+;;   (cl-loop for name in (look-buffer-list)
+;; 	   for buf = (get-buffer name)
+;; 	   if (and (buffer-live-p buf)
+;; 		   (window-live-p ))))
+
 (defun look-at-previous-file (&optional arg nosave)
   "Gets the previous file in the list.
 With prefix arg get the ARG'th previous file in the list.
@@ -395,7 +430,7 @@ and will become the new currently looked at file."
 	look-current-file file)
   (look-at-this-file))
 
-(defun look-at-nth-file (n nosave)
+(defun look-at-nth-file (n &optional nosave)
   "Look at the N'th file in the list.
 If N is negative count backwards from the end of the list.
 With 0 being the first file, and -1 being the last file,
