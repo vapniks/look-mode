@@ -353,7 +353,7 @@ to `look-file-settings'."
   (look-at-this-file))
 
 (defun look-apply-to-all (func &rest args)
-  "Apply FUNC to all active `look-mode' windows."
+  "Apply FUNC with optional ARGS to all active `look-mode' windows."
   (interactive (list (ido-choose-function
 		      '(("Look at next file" . look-at-next-file)
 			("Look at previous file" . look-at-previous-file)
@@ -365,22 +365,34 @@ to `look-file-settings'."
 			("Reverse files" . look-reverse-files)
 			("Filter files" . look-filter-files))
 		      nil nil t)))
-  (save-window-excursion
+  (let ((curbuf (buffer-name (current-buffer))))
     (cl-loop for buf in (look-live-buffers-list)
-	     do (with-current-buffer buf (apply func args)))))
+	     for window = (get-buffer-window buf)
+	     do (progn (select-window window)
+		       (apply func args)))
+    (select-window (get-buffer-window curbuf))))
 
-;; (defun look-at-next-file-all (&optional arg nosave)
-;;   "Applies `look-at-next-file' (which see) to all visible look buffers.
-;; Arguments are the same as for `look-at-next-file'."
-;;   (interactive (list current-prefix-arg nil))
-  
-;;   (dolist (buf (look-buffer-list))
-;;     (if (and (buffer-live-p )))
-;;     )
-;;   (cl-loop for name in (look-buffer-list)
-;; 	   for buf = (get-buffer name)
-;; 	   if (and (buffer-live-p buf)
-;; 		   (window-live-p ))))
+(defun look-apply-to-frame (func &rest args)
+  "Apply FUNC with optional ARGS to all active `look-mode' windows in this frame."
+  (interactive (list (ido-choose-function
+		      '(("Look at next file" . look-at-next-file)
+			("Look at previous file" . look-at-previous-file)
+			("Remove current file" . look-remove-this-file)
+			("Insert file" . look-insert-file)
+			("Reset file settings" . look-reset-file-settings)
+			("Goto nth file" . look-at-nth-file)
+			("Sort files" . look-sort-files)
+			("Reverse files" . look-reverse-files)
+			("Filter files" . look-filter-files))
+		      nil nil t)))
+  (let ((curbuf (buffer-name (current-buffer)))
+	(thisframe (selected-frame)))
+    (cl-loop for buf in (look-live-buffers-list)
+	     for window = (get-buffer-window buf)
+	     if (eq (window-frame window) thisframe)
+	     do (progn (select-window window)
+		       (apply func args)))
+    (select-window (get-buffer-window curbuf))))
 
 (defun look-at-previous-file (&optional arg nosave)
   "Gets the previous file in the list.
@@ -600,14 +612,14 @@ When called interactively reload currently looked at file."
 	(subdir look-subdir-list)
 	(overlay look-header-overlay))
     (cl-symbol-macrolet
-	;; restore buffer-local variables
-	((restore-locals (setq look-current-file current-file
-			       look-reverse-file-list reverse-list
-			       look-forward-file-list forward-list
-			       look-file-settings settings
-			       look-pwd pwd
-			       look-subdir-list subdir
-			       look-header-overlay overlay)))
+    	;; restore buffer-local variables
+    	((restore-locals (setq look-current-file current-file
+    			       look-reverse-file-list reverse-list
+    			       look-forward-file-list forward-list
+    			       look-file-settings settings
+    			       look-pwd pwd
+    			       look-subdir-list subdir
+    			       look-header-overlay overlay)))
       (kill-buffer name)		; clear the buffer
       (switch-to-buffer name)		; reopen it
       restore-locals
@@ -620,8 +632,8 @@ When called interactively reload currently looked at file."
 	restore-locals
 	(look-update-header-line)
 	;; try to apply file settings if available
-	(look-apply-file-settings)
-	(look-mode)))))
+	(look-apply-file-settings))
+      (look-mode))))
 
 (defun look-apply-file-settings nil
   "Apply file settings in `look-file-settings'."
