@@ -190,10 +190,16 @@ and whose cdr is an sexp to be evaluated in files with that mode."
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "C-.") 'look-at-next-file)
     (define-key map (kbd "C-,") 'look-at-previous-file)
-;    (define-key map (kbd "M-]") 'look-at-next-file)
-;    (define-key map (kbd "M-[") 'look-at-previous-file)
+    (define-key map (kbd "C->") 'look-at-next-file-frame)
+    (define-key map (kbd "C-<") 'look-at-previous-file-frame)
     (define-key map (kbd "M-n") 'look-at-next-file)
     (define-key map (kbd "M-p") 'look-at-previous-file)
+    (define-key map (kbd "M-N") 'look-at-next-file-frame)
+    (define-key map (kbd "M-P") 'look-at-previous-file-frame)
+    (define-key map (kbd "<M-right>") 'look-at-next-file)
+    (define-key map (kbd "<M-left>") 'look-at-previous-file)
+    (define-key map (kbd "<M-S-right>") 'look-at-next-file-frame)
+    (define-key map (kbd "<M-S-left>") 'look-at-previous-file-frame)
     (define-key map (kbd "C-c C-n") 'look-at-next-file)
     (define-key map (kbd "C-c C-p") 'look-at-previous-file)
     (define-key map (kbd "C-c #") 'look-at-nth-file)
@@ -333,7 +339,7 @@ Discards the file from the list if it is not a regular file or symlink to one.
 With prefix arg get the ARG'th next file in the list.
 Unless NOSAVE is non-nil then the settings for the current file will be added
 to `look-file-settings'."
-  (interactive (list current-prefix-arg nil))
+  (interactive "p")
   (look-check-current-buffer)
   (if (and look-current-file
 	   (not nosave)
@@ -357,8 +363,8 @@ to `look-file-settings'."
 With prefix arg get the ARG'th previous file in the list.
 Unless NOSAVE is non-nil then the settings for the current
 file will be added to `look-file-settings'."
-  (interactive (list current-prefix-arg nil)); pass no args on interactive call
-  (look-check-current-buffer)  
+  (interactive "p")
+  (look-check-current-buffer)
   (if (and look-current-file
 	   (not nosave)
 	   (assoc major-mode look-file-settings-templates))
@@ -578,19 +584,29 @@ apply to all active `look-mode' windows in all frames."
 		       (apply func args)))
     (select-window (get-buffer-window curbuf))))
 
-(defun look-at-next-file-all (&optional all)
+(defun look-at-next-file-frame (&optional arg nosave)
   "Apply `look-at-next-file' to all `look-mode' buffers in the current frame.
-If optional arg ALL is non-nil, or called interactively with a prefix arg, then 
-apply to all frames."
-  (interactive "P")
-  (look-apply-to-frame 'look-at-next-file all))
+Arguments ARG (prefix arg) and NOSAVE are as in `look-at-next-file' (which see)."
+  (interactive "p")
+  (look-apply-to-frame 'look-at-next-file nil arg nosave))
 
-(defun look-at-previous-file-all (&optional all)
+(defun look-at-previous-file-frame (&optional arg nosave)
   "Apply `look-at-previous-file' to all `look-mode' buffers in the current frame.
-If optional arg ALL is non-nil, or called interactively with a prefix arg, then 
-apply to all frames."
-  (interactive "P")
-  (look-apply-to-frame 'look-at-previous-file all))
+Arguments ARG (prefix arg) and NOSAVE are as in `look-at-previous-file' (which see)."
+  (interactive "p")
+  (look-apply-to-frame 'look-at-previous-file nil arg nosave))
+
+(defun look-at-next-file-all (&optional arg nosave)
+  "Apply `look-at-next-file' to all `look-mode' buffers in all frames.
+Arguments ARG (prefix arg) and NOSAVE are as in `look-at-next-file' (which see)."
+  (interactive "p")
+  (look-apply-to-frame 'look-at-next-file t arg nosave))
+
+(defun look-at-previous-file-all (&optional arg nosave)
+  "Apply `look-at-previous-file' to all `look-mode' buffers in all frames.
+Arguments ARG (prefix arg) and NOSAVE are as in `look-at-previous-file' (which see)."
+  (interactive "p")
+  (look-apply-to-frame 'look-at-previous-file t arg nosave))
 
 ;;;; subroutines
 
