@@ -90,6 +90,12 @@
   "View files in a temporary, writeable buffer."
   :prefix "look-"
   :group 'applications)
+(defcustom look-cache-directory
+  (expand-file-name (format "lookmode%d" (user-uid))
+		    temporary-file-directory)
+  "The directory where the cached images will be saved for `image-mode' buffers."
+  :group 'look
+  :type 'directory)
 (defcustom look-skip-file-list '(".zip$")
   "List of regular filename regexps to skip over."
   :group 'look
@@ -117,11 +123,7 @@
 			     (pdf-view-goto-page ,(pdf-view-current-page))
 			     (image-next-line ,(window-vscroll))
 			     (set-window-hscroll nil ,(window-hscroll))))
-    (image-mode . `(let ((size ',(image-size (eimp-get-image) t)))
-		     (eimp-mogrify-image
-		      (list "-resize" (format "%dx%d!" (car size) (cdr size))))
-		     (image-next-line ,(window-vscroll))
-		     (set-window-hscroll nil ,(window-hscroll)))))
+    (image-mode . (look-get-image-mode-info)))
   "Extra information used by `look-at-this-file' to display files.
 This is a alist whose keys are `major-mode' symbols, and whose
 values are sexps to be evaluated in a `look-mode' buffer for saving
@@ -131,6 +133,33 @@ page number etc, and will be evaluated when the file is visited again."
   :group 'look
   :type '(alist :key-type (symbol :tag "Major mode")
 		:value-type (sexp :tag "Code")))
+
+(defun look-get-image-mode-info nil
+  "Retun an sexp for `look-file-settings' for `image-mode' buffers.
+Used by `look-file-settings-templates'."
+  (if (not (buffer-modified-p))
+      nil	      ;don't save anything if the buffer is unmodified
+    (if (not (file-exists-p look-cache-directory))
+	;; make `look-cache-directory' if it doesn't already exist
+	(doc-view-make-safe-dir
+	 (file-name-as-directory look-cache-directory)))
+    (let ((filename (make-temp-file	;create the cache file for the current image
+		     (file-name-as-directory look-cache-directory)))
+	  (bufname (buffer-name)))
+      ;(set-visited-file-name filename t)
+      (and buffer-file-name
+	   (file-writable-p buffer-file-name)
+	   (setq buffer-read-only nil))
+      (write-region nil nil filename)
+      (rename-buffer bufname)
+      ;(look-mode)
+      `(progn (find-file-noselect-1 ,bufname ,filename nil nil nil
+				    (nthcdr 10 (file-attributes ,filename)))
+	      (rename-buffer ,bufname)
+	      (look-update-header-line)
+	      ;(setq look-current-file buffer-file-name)
+	      (image-next-line ,(window-vscroll))
+	      (set-window-hscroll nil ,(window-hscroll))))))
 
 (defcustom look-default-file-settings
   '((doc-view-mode . (unless doc-view--current-converter-processes
@@ -276,26 +305,28 @@ otherwise they replace them."
 			       (generate-new-buffer-name
 				(read-string "Look buffer name: " "*look*:")))))
 		 (list wildcard add name2)))
-  (if (and (string-match "[Jj][Pp][Ee]?[Gg]" look-wildcard)
+  (if (and (string-match (regexp-opt (mapcar 'symbol-name image-types))
+			 look-wildcard)
            (not (featurep 'eimp)))
       (require 'eimp nil t))
   (if (string= look-wildcard "") (setq look-wildcard "*"))
   ;; get look buffer
   (switch-to-buffer (or name (generate-new-buffer-name "*look*")))
   ;; reset buffer local variables
-  (if (not add) (setq look-forward-file-list nil
-		      look-reverse-file-list nil
-		      look-current-file nil))
+  (if (not add)
+      (setq look-forward-file-list nil
+	    look-reverse-file-list nil
+	    look-current-file nil))
   (setq look-subdir-list (list "./")
 	look-pwd (replace-regexp-in-string
-		  "~" (getenv "HOME") (replace-regexp-in-string "^Directory " "" (pwd))))
+		  "^~" (getenv "HOME") (replace-regexp-in-string "^Directory " "" (pwd))))
   ;; get file names
   (let ((look-file-list (file-expand-wildcards look-wildcard))
         (fullpath-dir-list nil))
     ;; use relative file names to prevent weird side effects with skip lists
     ;; cat look-pwd with filename, separate dirs from files,
     ;; remove files/dirs that match elements of the skip lists ;;
-    (dolist (lfl-item look-file-list look-forward-file-list)
+    (dolist (lfl-item look-file-list)
       (if (and (file-regular-p lfl-item)
                ;; check if any regexps in skip list match filename
                (catch 'skip-this-one
@@ -325,7 +356,7 @@ otherwise they replace them."
                            (list lfl-item)))))))
     ;; now strip look-pwd off the subdirs in subdirlist
     ;; or maybe I should leave everything as full-path....
-    (dolist (fullpath fullpath-dir-list look-subdir-list)
+    (dolist (fullpath fullpath-dir-list)
       (setq look-subdir-list
             (nconc look-subdir-list
                    (list (file-name-as-directory
