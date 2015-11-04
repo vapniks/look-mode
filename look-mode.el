@@ -377,9 +377,12 @@ to `look-file-settings'."
 	   (assoc major-mode look-file-settings-templates))
       (let ((info (eval (cdr (assoc major-mode look-file-settings-templates))))
 	    (item (assoc look-current-file look-file-settings)))
-	(if item (setcdr item info)
-	  (add-to-list 'look-file-settings
-		       (cons look-current-file info)))))
+	(if info
+	    (if item (setcdr item info)
+	      (add-to-list 'look-file-settings
+			   (cons look-current-file info)))
+	  (cl-delete-if (lambda (x) (equal (car x) look-current-file))
+			look-file-settings))))
   (dotimes (i (or arg 1))
     (if (and look-current-file
 	     (or (eq i 0) look-forward-file-list))
@@ -401,8 +404,12 @@ file will be added to `look-file-settings'."
 	   (assoc major-mode look-file-settings-templates))
       (let ((info (eval (cdr (assoc major-mode look-file-settings-templates))))
 	    (item (assoc look-current-file look-file-settings)))
-	(if item (setcdr item info)
-	  (add-to-list 'look-file-settings (cons look-current-file info)))))
+	(if info
+	    (if item (setcdr item info)
+	      (add-to-list 'look-file-settings
+			   (cons look-current-file info)))
+	  (cl-delete-if (lambda (x) (equal (car x) look-current-file))
+			look-file-settings))))
   (dotimes (i (or arg 1))
     (if (and look-current-file
 	     (or (eq i 0) look-reverse-file-list))
