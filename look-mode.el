@@ -141,23 +141,14 @@ Used by `look-file-settings-templates'."
       nil	      ;don't save anything if the buffer is unmodified
     (if (not (file-exists-p look-cache-directory))
 	;; make `look-cache-directory' if it doesn't already exist
-	(doc-view-make-safe-dir
-	 (file-name-as-directory look-cache-directory)))
+	(doc-view-make-safe-dir (file-name-as-directory look-cache-directory)))
     (let ((filename (make-temp-file	;create the cache file for the current image
 		     (file-name-as-directory look-cache-directory)))
 	  (bufname (buffer-name)))
-      ;(set-visited-file-name filename t)
-      (and buffer-file-name
-	   (file-writable-p buffer-file-name)
-	   (setq buffer-read-only nil))
-      (write-region nil nil filename)
-      (rename-buffer bufname)
-      ;(look-mode)
-      `(progn (find-file-noselect-1 ,bufname ,filename nil nil nil
+      (write-region (eimp-get-image-data) nil filename)	;cache the current image
+      ;; create the form to be evaluated when the file is next visited
+      `(progn (find-file-noselect-1 (get-buffer ,bufname) ,filename nil nil nil
 				    (nthcdr 10 (file-attributes ,filename)))
-	      (rename-buffer ,bufname)
-	      (look-update-header-line)
-	      ;(setq look-current-file buffer-file-name)
 	      (image-next-line ,(window-vscroll))
 	      (set-window-hscroll nil ,(window-hscroll))))))
 
@@ -371,7 +362,9 @@ With prefix arg get the ARG'th next file in the list.
 Unless NOSAVE is non-nil then the settings for the current file will be added
 to `look-file-settings'."
   (interactive "p")
+  ;; make sure that we are in a `look-mode' buffer
   (look-check-current-buffer)
+  ;; update file settings for current file if possible
   (if (and look-current-file
 	   (not nosave)
 	   (assoc major-mode look-file-settings-templates))
@@ -379,10 +372,10 @@ to `look-file-settings'."
 	    (item (assoc look-current-file look-file-settings)))
 	(if info
 	    (if item (setcdr item info)
-	      (add-to-list 'look-file-settings
-			   (cons look-current-file info)))
-	  (cl-delete-if (lambda (x) (equal (car x) look-current-file))
-			look-file-settings))))
+	      (push (cons look-current-file info) look-file-settings)
+	      (cl-delete-if (lambda (x) (equal (car x) look-current-file))
+			    look-file-settings)))))
+  ;; make the next file the current file
   (dotimes (i (or arg 1))
     (if (and look-current-file
 	     (or (eq i 0) look-forward-file-list))
@@ -406,10 +399,9 @@ file will be added to `look-file-settings'."
 	    (item (assoc look-current-file look-file-settings)))
 	(if info
 	    (if item (setcdr item info)
-	      (add-to-list 'look-file-settings
-			   (cons look-current-file info)))
-	  (cl-delete-if (lambda (x) (equal (car x) look-current-file))
-			look-file-settings))))
+	      (push (cons look-current-file info) look-file-settings)
+	      (cl-delete-if (lambda (x) (equal (car x) look-current-file))
+			    look-file-settings)))))
   (dotimes (i (or arg 1))
     (if (and look-current-file
 	     (or (eq i 0) look-reverse-file-list))
@@ -652,9 +644,8 @@ Arguments ARG (prefix arg) and NOSAVE are as in `look-at-previous-file' (which s
   "Insert FILE into current buffer and set mode appropriately.
 When called interactively reload currently looked at file."
   (look-check-current-buffer)
-  (if (memq major-mode '(doc-view-mode pdf-view-mode image-mode))
-      (set-buffer-modified-p nil))
   (let ((name (buffer-name))
+	(mode major-mode)
 	;; save buffer-local variables
 	(current-file look-current-file)
 	(reverse-list look-reverse-file-list)
@@ -672,26 +663,32 @@ When called interactively reload currently looked at file."
     			       look-pwd pwd
     			       look-subdir-list subdir
     			       look-header-overlay overlay)))
+      ;; set buffer as unmodified for modes that automatically modify the buffer
+      ;; so that emacs wont prompt when the buffer is killed
+      (if (memq mode '(doc-view-mode pdf-view-mode image-mode))
+	  (set-buffer-modified-p nil))
       (kill-buffer name)		; clear the buffer
       (switch-to-buffer name)		; reopen it
-      restore-locals
       (if (not current-file)
-	  (look-no-more)
-	(setq buffer-file-name current-file)
-	(find-file-noselect-1 name current-file nil nil nil
-			      (nthcdr 10 (file-attributes current-file)))
-	;; need restore buffer-local variables again since `find-file-noselect-1' resets them
+	  (progn restore-locals
+		 (look-no-more))
+	(unless (assoc current-file settings)
+	  (find-file-noselect-1 name current-file nil nil nil
+				(nthcdr 10 (file-attributes current-file))))
+	;; try to apply file settings if available (need to restore buffer-local vars
+	;; before and after since `find-file-noselect-1' resets them).
+	restore-locals
+	(look-apply-file-settings)
 	restore-locals
 	(look-update-header-line)
-	;; try to apply file settings if available
-	(look-apply-file-settings))
+	(setq buffer-file-name current-file)
+	(rename-buffer name))
       (look-mode))))
 
 (defun look-apply-file-settings nil
   "Apply file settings in `look-file-settings'."
   (condition-case err
-      (if (and (assoc major-mode look-file-settings-templates)
-	       (assoc look-current-file look-file-settings))
+      (if (assoc look-current-file look-file-settings)
 	  (eval (cdr (assoc look-current-file look-file-settings)))
 	(if (assoc major-mode look-default-file-settings)
 	    (eval (cdr (assoc major-mode look-default-file-settings)))))
