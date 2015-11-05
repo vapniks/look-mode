@@ -672,7 +672,8 @@ When called interactively reload currently looked at file."
       (if (not current-file)
 	  (progn restore-locals
 		 (look-no-more))
-	(unless (assoc current-file settings)
+	(unless (and (assoc current-file settings)
+		     (memq mode '(image-mode)))
 	  (find-file-noselect-1 name current-file nil nil nil
 				(nthcdr 10 (file-attributes current-file))))
 	;; try to apply file settings if available (need to restore buffer-local vars
