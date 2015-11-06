@@ -546,9 +546,11 @@ looked at file."
 
 (defun look-set-default-file-settings (func)
   "Set the value of `look-user-default-file-settings' to FUNC for the current buffer."
-  (interactive (list
-		(read-from-minibuffer "Function (no args) to apply after file is read (set to nil to use defaults): "
-				      "(lambda nil)" nil t)))
+  (interactive
+   (list
+    (read-from-minibuffer
+     "Function (no args) to apply after file is read (set to nil to use defaults): "
+     "(lambda nil)" nil t)))
   (look-check-current-buffer)
   (if (or (functionp func) (not func))
       (setq look-user-default-file-settings func)
@@ -628,6 +630,14 @@ Arguments ARG (prefix arg) and NOSAVE are as in `look-at-previous-file' (which s
   (interactive "p")
   (look-apply-to-frame 'look-at-previous-file t arg nosave))
 
+(defun look-empty-cache nil
+  "Empty the `look-cache-directory' directory."
+  (interactive)
+  (if (y-or-n-p "Are you sure you want to delete all files in the cache directory?")
+      (cl-loop for file in (nthcdr 2 (directory-files look-cache-directory t))
+	       do (if (file-writable-p file)
+		      (delete-file file)
+		    (message "Cannot delete file %s" file)))))
 ;;;; subroutines
 
 (defun look-buffer-list nil
