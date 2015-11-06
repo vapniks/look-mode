@@ -134,17 +134,16 @@ page number etc, and will be evaluated when the file is visited again."
 		:value-type (sexp :tag "Code")))
 (defcustom look-cache-images t
   "Whether or not image files should be cached.
-The cached images will be stored in `look-cache-directory', and restored
-by `look-file-settings' as long as `look-get-image-mode-info' is used as
-the `image-mode' entry of `look-file-settings-templates'."
+The cached images will be stored in `look-cache-directory'."
   :group 'look
   :type 'boolean)
-
 (defcustom look-default-file-settings
   '((doc-view-mode . (unless doc-view--current-converter-processes
 		       (doc-view-fit-height-to-window)))
     (pdf-view-mode . (pdf-view-fit-height-to-window))
-    (image-mode . (eimp-fit-image-height-to-window nil)))
+    (image-mode . (unless (and look-cache-images ;don't resize cached images
+			       (file-readable-p (look-get-cache-filename)))
+		    (eimp-fit-image-height-to-window nil))))
   "Alist of default values for `look-file-settings'.
 Each element is a cons cell whose car is a `major-mode' symbol,
 and whose cdr is an sexp to be evaluated in files with that mode."
@@ -344,6 +343,17 @@ to `look-file-settings'."
   (interactive "p")
   ;; make sure that we are in a `look-mode' buffer
   (look-check-current-buffer)
+  ;; cache image if necessary
+  (unless (not (and look-cache-images
+		    (eq major-mode 'image-mode)
+		    (buffer-modified-p)))
+    (if (not (file-exists-p look-cache-directory))
+	;; make `look-cache-directory' if it doesn't already exist
+	(doc-view-make-safe-dir
+	 (file-name-as-directory look-cache-directory)))
+    ;; create the cache file for the current image
+    (write-region (eimp-get-image-data) nil
+		  (look-get-cache-filename)))
   ;; update file settings for current file if possible
   (if (and look-current-file
 	   (not nosave)
@@ -372,6 +382,18 @@ Unless NOSAVE is non-nil then the settings for the current
 file will be added to `look-file-settings'."
   (interactive "p")
   (look-check-current-buffer)
+  ;; cache image if necessary
+  (unless (not (and look-cache-images
+		    (eq major-mode 'image-mode)
+		    (buffer-modified-p)))
+    (if (not (file-exists-p look-cache-directory))
+	;; make `look-cache-directory' if it doesn't already exist
+	(doc-view-make-safe-dir
+	 (file-name-as-directory look-cache-directory)))
+    ;; create the cache file for the current image
+    (write-region (eimp-get-image-data) nil
+		  (look-get-cache-filename)))
+  ;; update file settings for current file if possible
   (if (and look-current-file
 	   (not nosave)
 	   (assoc major-mode look-file-settings-templates))
@@ -382,12 +404,13 @@ file will be added to `look-file-settings'."
 	      (push (cons look-current-file info) look-file-settings)
 	      (cl-delete-if (lambda (x) (equal (car x) look-current-file))
 			    look-file-settings)))))
+  ;; make the previous file the current file
   (dotimes (i (or arg 1))
     (if (and look-current-file
 	     (or (eq i 0) look-reverse-file-list))
 	(push look-current-file look-forward-file-list))
     (setq look-current-file (if look-reverse-file-list
-				;; get the next file in the list
+				;; get the previous file in the list
 				(pop look-reverse-file-list))))
   (look-at-this-file))
 
@@ -633,12 +656,24 @@ Arguments ARG (prefix arg) and NOSAVE are as in `look-at-previous-file' (which s
 (defun look-empty-cache nil
   "Empty the `look-cache-directory' directory."
   (interactive)
-  (if (y-or-n-p "Are you sure you want to delete all files in the cache directory?")
+  (if (y-or-n-p "Are you sure you want to delete all files in the cache directory? ")
       (cl-loop for file in (nthcdr 2 (directory-files look-cache-directory t))
 	       do (if (file-writable-p file)
 		      (delete-file file)
 		    (message "Cannot delete file %s" file)))))
 ;;;; subroutines
+(defun look-get-image-mode-info nil
+  "Return an sexp for `look-file-settings' for `image-mode' buffers.
+Used by `look-file-settings-templates'."
+  (unless (buffer-modified-p) ;don't save anything if the buffer is unmodified
+    (if look-cache-images
+	`(progn (image-next-line ,(window-vscroll))
+		(set-window-hscroll nil ,(window-hscroll)))
+      ;; create the form to be evaluated when the file is next visited
+      `(let ((size ',(image-size (eimp-get-image) t)))
+	 (eimp-mogrify-image (list "-resize" (format "%dx%d!" (car size) (cdr size))))
+	 (image-next-line ,(window-vscroll))
+	 (set-window-hscroll nil ,(window-hscroll))))))
 
 (defun look-buffer-list nil
   "Return a list of names of `look-mode' buffers."
@@ -658,35 +693,24 @@ Throw an error if it's not."
   (if (not look-mode)
       (error "Current buffer is not a `look-mode' buffer")))
 
-(defun look-get-image-mode-info nil
-  "Return an sexp for `look-file-settings' for `image-mode' buffers.
-Used by `look-file-settings-templates'."
-  (if (not (buffer-modified-p))
-      nil	      ;don't save anything if the buffer is unmodified
-    (if (not look-cache-images)
-	`(let ((size ',(image-size (eimp-get-image) t)))
-	   (eimp-mogrify-image
-	    (list "-resize" (format "%dx%d!" (car size) (cdr size))))
-	   (image-next-line ,(window-vscroll))
-	   (set-window-hscroll nil ,(window-hscroll)))
-      (if (not (file-exists-p look-cache-directory))
-	  ;; make `look-cache-directory' if it doesn't already exist
-	  (doc-view-make-safe-dir (file-name-as-directory look-cache-directory)))
-      (let ((filename (make-temp-file ;create the cache file for the current image
-		       (file-name-as-directory look-cache-directory)))
-	    (bufname (buffer-name)))
-	(write-region (eimp-get-image-data) nil filename) ;cache the current image
-	;; create the form to be evaluated when the file is next visited
-	`(look-apply-image-file-settings ,bufname ,filename ,(window-vscroll) ,(window-hscroll))))))
+(cl-defun look-get-cache-filename (&optional (filename look-current-file))
+  "Return name of cached file corresponding to FILENAME (default `look-current-file')."
+  (concat (file-name-as-directory look-cache-directory)
+	  (sha1 filename)))
 
-(defun look-apply-image-file-settings (buf file line col)
-  (if (file-readable-p file)
-      (find-file-noselect-1
-       (get-buffer buf) file nil nil nil
-       (nthcdr 10 (file-attributes file)))
-    (message "Can't read cached image"))
-  (image-next-line line)
-  (set-window-hscroll nil col))
+(cl-defun look-load-cached-image (&optional (filename look-current-file))
+  "Load the cached version of FILENAME (default `look-current-file').
+If cached file couldn't be loaded, return nil, otherwise return the current buffer."
+  (let ((file (look-get-cache-filename filename)))
+    (if (file-exists-p file)
+	(if (file-readable-p file)
+	    (find-file-noselect-1
+	     (current-buffer) file nil nil nil
+	     (nthcdr 10 (file-attributes file)))
+	  (message "Can't read cached image")
+	  nil)
+      (message "No cache file available")
+      nil)))
 
 (defun look-at-this-file (&optional reset)
   "Insert `look-current-file' into current buffer and set mode appropriately.
@@ -726,11 +750,10 @@ When called interactively reload currently looked at file after deleting its set
       (if (not current-file)
 	  (progn (restore-locals)
 		 (look-no-more))
-	(unless (and (eq mode 'image-mode)
-		     look-cache-images
-		     (assoc current-file settings))
-	  (find-file-noselect-1 name current-file nil nil nil
-				(nthcdr 10 (file-attributes current-file))))
+	(unless (and look-cache-images
+		     (look-load-cached-image current-file))
+	  (find-file-noselect-1
+	   name current-file nil nil nil (nthcdr 10 (file-attributes current-file))))
 	;; try to apply file settings if available (need to restore buffer-local vars
 	;; before and after since `find-file-noselect-1' resets them).
 	(restore-locals)
