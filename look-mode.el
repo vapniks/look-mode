@@ -112,7 +112,6 @@
   "Incorporate all subdirectories of matching directories into `look-subdir-list'."
   :group 'look
   :type 'boolean)
-
 (defcustom look-file-settings-templates
   '((doc-view-mode . `(unless doc-view--current-converter-processes
 			(setq doc-view-image-width ,doc-view-image-width)
@@ -133,24 +132,43 @@ page number etc, and will be evaluated when the file is visited again."
   :group 'look
   :type '(alist :key-type (symbol :tag "Major mode")
 		:value-type (sexp :tag "Code")))
+(defcustom look-cache-images t
+  "Whether or not image files should be cached.
+The cached images will be stored in `look-cache-directory', and restored
+by `look-file-settings' as long as `look-get-image-mode-info' is used as
+the `image-mode' entry of `look-file-settings-templates'."
+  :group 'look
+  :type 'boolean)
 
 (defun look-get-image-mode-info nil
-  "Retun an sexp for `look-file-settings' for `image-mode' buffers.
+  "Return an sexp for `look-file-settings' for `image-mode' buffers.
 Used by `look-file-settings-templates'."
   (if (not (buffer-modified-p))
       nil	      ;don't save anything if the buffer is unmodified
-    (if (not (file-exists-p look-cache-directory))
-	;; make `look-cache-directory' if it doesn't already exist
-	(doc-view-make-safe-dir (file-name-as-directory look-cache-directory)))
-    (let ((filename (make-temp-file	;create the cache file for the current image
-		     (file-name-as-directory look-cache-directory)))
-	  (bufname (buffer-name)))
-      (write-region (eimp-get-image-data) nil filename)	;cache the current image
-      ;; create the form to be evaluated when the file is next visited
-      `(progn (find-file-noselect-1 (get-buffer ,bufname) ,filename nil nil nil
-				    (nthcdr 10 (file-attributes ,filename)))
-	      (image-next-line ,(window-vscroll))
-	      (set-window-hscroll nil ,(window-hscroll))))))
+    (if (not look-cache-images)
+	`(let ((size ',(image-size (eimp-get-image) t)))
+	   (eimp-mogrify-image
+	    (list "-resize" (format "%dx%d!" (car size) (cdr size))))
+	   (image-next-line ,(window-vscroll))
+	   (set-window-hscroll nil ,(window-hscroll)))
+      (if (not (file-exists-p look-cache-directory))
+	  ;; make `look-cache-directory' if it doesn't already exist
+	  (doc-view-make-safe-dir (file-name-as-directory look-cache-directory)))
+      (let ((filename (make-temp-file ;create the cache file for the current image
+		       (file-name-as-directory look-cache-directory)))
+	    (bufname (buffer-name)))
+	(write-region (eimp-get-image-data) nil filename) ;cache the current image
+	;; create the form to be evaluated when the file is next visited
+	`(look-apply-image-file-settings ,bufname ,filename ,(window-vscroll) ,(window-hscroll))))))
+
+(defun look-apply-image-file-settings (buf file line col)
+  (if (file-readable-p file)
+      (find-file-noselect-1
+       (get-buffer buf) file nil nil nil
+       (nthcdr 10 (file-attributes file)))
+    (message "Can't read cached image"))
+  (image-next-line line)
+  (set-window-hscroll nil col))
 
 (defcustom look-default-file-settings
   '((doc-view-mode . (unless doc-view--current-converter-processes
@@ -641,9 +659,8 @@ Arguments ARG (prefix arg) and NOSAVE are as in `look-at-previous-file' (which s
 ;;;; subroutines
 
 (defun look-at-this-file nil
-  "Insert FILE into current buffer and set mode appropriately.
+  "Insert `look-current-file' into current buffer and set mode appropriately.
 When called interactively reload currently looked at file."
-  (look-check-current-buffer)
   (let ((name (buffer-name))
 	(mode major-mode)
 	;; save buffer-local variables
@@ -670,10 +687,18 @@ When called interactively reload currently looked at file."
       (kill-buffer name)		; clear the buffer
       (switch-to-buffer name)		; reopen it
       (if (not current-file)
-	  (progn restore-locals
-		 (look-no-more))
-	(unless (and (assoc current-file settings)
-		     (memq mode '(image-mode)))
+	  (progn			;restore-locals
+	    (setq look-current-file current-file
+		  look-reverse-file-list reverse-list
+		  look-forward-file-list forward-list
+		  look-file-settings settings
+		  look-pwd pwd
+		  look-subdir-list subdir
+		  look-header-overlay overlay)
+	    (look-no-more))
+	(unless (and (eq mode 'image-mode)
+		     look-cache-images
+		     (assoc current-file settings))
 	  (find-file-noselect-1 name current-file nil nil nil
 				(nthcdr 10 (file-attributes current-file))))
 	;; try to apply file settings if available (need to restore buffer-local vars
@@ -681,9 +706,11 @@ When called interactively reload currently looked at file."
 	restore-locals
 	(look-apply-file-settings)
 	restore-locals
-	(look-update-header-line)
-	(setq buffer-file-name current-file)
-	(rename-buffer name))
+	;; make sure buffer is associated with original file
+	;; (it could have been changed by `look-file-settings')
+	(set-visited-file-name current-file)
+	(rename-buffer name)
+	(look-update-header-line))
       (look-mode))))
 
 (defun look-apply-file-settings nil
@@ -698,7 +725,6 @@ When called interactively reload currently looked at file."
 (defun look-keep-header-on-top (window start)
   "Used by `look-update-header-line' to keep overlay at top of buffer.
 Argument WINDOW not used.  Argument START is the start position."
-  (look-check-current-buffer)
   (move-overlay look-header-overlay start start))
 
 (defun lface-header (text)
@@ -721,9 +747,9 @@ Argument WINDOW not used.  Argument START is the start position."
 					       (- (length relfilename))))
 		   " |"
 		   (number-to-string (length look-forward-file-list)) "]")))
-        (jj 1))
+	 (jj 1))
     (if look-show-subdirs
-        ; list all but the first item in look-subdir-list
+	;; list all but the first item in look-subdir-list
         (while (< jj (length look-subdir-list))
           (setq look-header-line
                 (concat look-header-line
@@ -736,8 +762,8 @@ Argument WINDOW not used.  Argument START is the start position."
                         (lface-header (replace-regexp-in-string ;remove trailing '/'
                                        "/$" "" (nth jj look-subdir-list)))))
           (setq jj (1+ jj))))
-    (overlay-put look-header-overlay 'before-string (concat look-header-line
-                                                            (lface-header "\n")))
+    (overlay-put look-header-overlay
+		 'before-string (concat look-header-line (lface-header "\n")))
     (move-overlay look-header-overlay
 		  (window-start) (window-start) (current-buffer))
     (add-hook 'window-scroll-functions 'look-keep-header-on-top nil t)))
