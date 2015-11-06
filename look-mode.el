@@ -184,6 +184,14 @@ and whose cdr is an sexp to be evaluated in files with that mode."
   "List of files stored by the command look-at-files for reverse lookup.")
 (defvar-local look-subdir-list nil
   "Subdirectories found in the file listing.")
+(defvar-local look-user-default-file-settings nil
+  "A function which can be set by the user to override `look-default-file-settings'.
+The function takes no args, and is called when first visiting a file for which there
+are no corresponding settings in `look-file-settings'.
+If nil then `look-default-file-settings' will be used instead.
+This variable is buffer-local so you can have different behaviour for different `look-mode'
+buffers.
+Use `look-set-default-file-settings' in a `look-mode' buffer to change the value of this variable.")
 (defvar look-hilight-subdir-index 1
   "Subdirectory index to hilight.")
 (defvar-local look-current-file nil
@@ -204,6 +212,8 @@ and whose cdr is an sexp to be evaluated in files with that mode."
     (define-key map (kbd "M-p") 'look-at-previous-file)
     (define-key map (kbd "M-N") 'look-at-next-file-frame)
     (define-key map (kbd "M-P") 'look-at-previous-file-frame)
+    (define-key map (kbd "M-R") 'look-at-this-file)
+    (define-key map (kbd "C-S-r") 'look-at-this-file)
     (define-key map (kbd "<M-right>") 'look-at-next-file)
     (define-key map (kbd "<M-left>") 'look-at-previous-file)
     (define-key map (kbd "<M-S-right>") 'look-at-next-file-frame)
@@ -534,6 +544,16 @@ looked at file."
   (look-check-current-buffer)
   (setq look-file-settings nil))
 
+(defun look-set-default-file-settings (func)
+  "Set the value of `look-user-default-file-settings' to FUNC for the current buffer."
+  (interactive (list
+		(read-from-minibuffer "Function (no args) to apply after file is read (set to nil to use defaults): "
+				      "(lambda nil)" nil t)))
+  (look-check-current-buffer)
+  (if (or (functionp func) (not func))
+      (setq look-user-default-file-settings func)
+    (error "Invalid function %S" func)))
+
 (defun look-customize-defaults nil
   "Customize `look-default-file-settings'.
 This is a convenience function for when you want to
@@ -673,6 +693,7 @@ When called interactively reload currently looked at file after deleting its set
 	(reverse-list look-reverse-file-list)
 	(forward-list look-forward-file-list)
 	(settings look-file-settings)
+	(user-settings look-user-default-file-settings)
 	(pwd look-pwd)
 	(subdir look-subdir-list)
 	(overlay look-header-overlay))
@@ -682,6 +703,7 @@ When called interactively reload currently looked at file after deleting its set
     			       look-reverse-file-list reverse-list
     			       look-forward-file-list forward-list
     			       look-file-settings settings
+			       look-user-default-file-settings user-settings
     			       look-pwd pwd
     			       look-subdir-list subdir
     			       look-header-overlay overlay)))
@@ -716,8 +738,10 @@ When called interactively reload currently looked at file after deleting its set
   (condition-case err
       (if (assoc look-current-file look-file-settings)
 	  (eval (cdr (assoc look-current-file look-file-settings)))
-	(if (assoc major-mode look-default-file-settings)
-	    (eval (cdr (assoc major-mode look-default-file-settings)))))
+	(if look-user-default-file-settings
+	    (funcall look-user-default-file-settings)
+	  (if (assoc major-mode look-default-file-settings)
+	      (eval (cdr (assoc major-mode look-default-file-settings))))))
     (error (message "%S %S" (car err) (cdr err)))))
 
 (defun look-keep-header-on-top (window start)
