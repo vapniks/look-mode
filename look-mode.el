@@ -140,36 +140,6 @@ the `image-mode' entry of `look-file-settings-templates'."
   :group 'look
   :type 'boolean)
 
-(defun look-get-image-mode-info nil
-  "Return an sexp for `look-file-settings' for `image-mode' buffers.
-Used by `look-file-settings-templates'."
-  (if (not (buffer-modified-p))
-      nil	      ;don't save anything if the buffer is unmodified
-    (if (not look-cache-images)
-	`(let ((size ',(image-size (eimp-get-image) t)))
-	   (eimp-mogrify-image
-	    (list "-resize" (format "%dx%d!" (car size) (cdr size))))
-	   (image-next-line ,(window-vscroll))
-	   (set-window-hscroll nil ,(window-hscroll)))
-      (if (not (file-exists-p look-cache-directory))
-	  ;; make `look-cache-directory' if it doesn't already exist
-	  (doc-view-make-safe-dir (file-name-as-directory look-cache-directory)))
-      (let ((filename (make-temp-file ;create the cache file for the current image
-		       (file-name-as-directory look-cache-directory)))
-	    (bufname (buffer-name)))
-	(write-region (eimp-get-image-data) nil filename) ;cache the current image
-	;; create the form to be evaluated when the file is next visited
-	`(look-apply-image-file-settings ,bufname ,filename ,(window-vscroll) ,(window-hscroll))))))
-
-(defun look-apply-image-file-settings (buf file line col)
-  (if (file-readable-p file)
-      (find-file-noselect-1
-       (get-buffer buf) file nil nil nil
-       (nthcdr 10 (file-attributes file)))
-    (message "Can't read cached image"))
-  (image-next-line line)
-  (set-window-hscroll nil col))
-
 (defcustom look-default-file-settings
   '((doc-view-mode . (unless doc-view--current-converter-processes
 		       (doc-view-fit-height-to-window)))
@@ -276,24 +246,6 @@ and whose cdr is an sexp to be evaluated in files with that mode."
 	look-file-settings nil))
 
 ;;;; Navigation Commands
-
-(defun look-buffer-list nil
-  "Return a list of names of `look-mode' buffers."
-  (cl-loop for buf in (buffer-list)
-	   when (with-current-buffer buf look-mode)
-	   collect (buffer-name buf)))
-
-(defun look-live-buffers-list nil
-  "Return list of all active `look-mode' windows."
-  (cl-loop for buf in (look-buffer-list)
-	   if (window-live-p (get-buffer-window buf))
-	   collect buf))
-  
-(defun look-check-current-buffer nil
-  "Check that the current buffer is a `look-mode' buffer.
-Throw an error if it's not."
-  (if (not look-mode)
-      (error "Current buffer is not a `look-mode' buffer")))
 
 (defun look-at-files (look-wildcard &optional add name)
   "Look at files in directory and insert into temporary buffer one at a time.
@@ -657,6 +609,54 @@ Arguments ARG (prefix arg) and NOSAVE are as in `look-at-previous-file' (which s
   (look-apply-to-frame 'look-at-previous-file t arg nosave))
 
 ;;;; subroutines
+
+(defun look-buffer-list nil
+  "Return a list of names of `look-mode' buffers."
+  (cl-loop for buf in (buffer-list)
+	   when (with-current-buffer buf look-mode)
+	   collect (buffer-name buf)))
+
+(defun look-live-buffers-list nil
+  "Return list of all active `look-mode' windows."
+  (cl-loop for buf in (look-buffer-list)
+	   if (window-live-p (get-buffer-window buf))
+	   collect buf))
+  
+(defun look-check-current-buffer nil
+  "Check that the current buffer is a `look-mode' buffer.
+Throw an error if it's not."
+  (if (not look-mode)
+      (error "Current buffer is not a `look-mode' buffer")))
+
+(defun look-get-image-mode-info nil
+  "Return an sexp for `look-file-settings' for `image-mode' buffers.
+Used by `look-file-settings-templates'."
+  (if (not (buffer-modified-p))
+      nil	      ;don't save anything if the buffer is unmodified
+    (if (not look-cache-images)
+	`(let ((size ',(image-size (eimp-get-image) t)))
+	   (eimp-mogrify-image
+	    (list "-resize" (format "%dx%d!" (car size) (cdr size))))
+	   (image-next-line ,(window-vscroll))
+	   (set-window-hscroll nil ,(window-hscroll)))
+      (if (not (file-exists-p look-cache-directory))
+	  ;; make `look-cache-directory' if it doesn't already exist
+	  (doc-view-make-safe-dir (file-name-as-directory look-cache-directory)))
+      (let ((filename (make-temp-file ;create the cache file for the current image
+		       (file-name-as-directory look-cache-directory)))
+	    (bufname (buffer-name)))
+	(write-region (eimp-get-image-data) nil filename) ;cache the current image
+	;; create the form to be evaluated when the file is next visited
+	`(look-apply-image-file-settings ,bufname ,filename ,(window-vscroll) ,(window-hscroll))))))
+
+(defun look-apply-image-file-settings (buf file line col)
+  (if (file-readable-p file)
+      (find-file-noselect-1
+       (get-buffer buf) file nil nil nil
+       (nthcdr 10 (file-attributes file)))
+    (message "Can't read cached image"))
+  (image-next-line line)
+  (set-window-hscroll nil col))
 
 (defun look-at-this-file nil
   "Insert `look-current-file' into current buffer and set mode appropriately.
