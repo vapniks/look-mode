@@ -751,6 +751,7 @@ When called interactively reload currently looked at file after deleting its set
 	  (progn (restore-locals)
 		 (look-no-more))
 	(unless (and look-cache-images
+		     (not reset)
 		     (look-load-cached-image current-file))
 	  (find-file-noselect-1
 	   name current-file nil nil nil (nthcdr 10 (file-attributes current-file))))
