@@ -658,9 +658,14 @@ Used by `look-file-settings-templates'."
   (image-next-line line)
   (set-window-hscroll nil col))
 
-(defun look-at-this-file nil
+(defun look-at-this-file (&optional reset)
   "Insert `look-current-file' into current buffer and set mode appropriately.
-When called interactively reload currently looked at file."
+If RESET is non-nil delete the settings for `look-current-file' in `look-file-settings'.
+When called interactively reload currently looked at file after deleting its settings."
+  (interactive (list t))
+  (if reset
+      (cl-delete (cons look-current-file nil) look-file-settings
+		 :test (lambda (a b) (equal (car a) (car b)))))
   (let ((name (buffer-name))
 	(mode major-mode)
 	;; save buffer-local variables
@@ -671,9 +676,9 @@ When called interactively reload currently looked at file."
 	(pwd look-pwd)
 	(subdir look-subdir-list)
 	(overlay look-header-overlay))
-    (cl-symbol-macrolet
+    (cl-flet
     	;; restore buffer-local variables
-    	((restore-locals (setq look-current-file current-file
+    	((restore-locals nil (setq look-current-file current-file
     			       look-reverse-file-list reverse-list
     			       look-forward-file-list forward-list
     			       look-file-settings settings
@@ -687,15 +692,8 @@ When called interactively reload currently looked at file."
       (kill-buffer name)		; clear the buffer
       (switch-to-buffer name)		; reopen it
       (if (not current-file)
-	  (progn			;restore-locals
-	    (setq look-current-file current-file
-		  look-reverse-file-list reverse-list
-		  look-forward-file-list forward-list
-		  look-file-settings settings
-		  look-pwd pwd
-		  look-subdir-list subdir
-		  look-header-overlay overlay)
-	    (look-no-more))
+	  (progn (restore-locals)
+		 (look-no-more))
 	(unless (and (eq mode 'image-mode)
 		     look-cache-images
 		     (assoc current-file settings))
@@ -703,9 +701,9 @@ When called interactively reload currently looked at file."
 				(nthcdr 10 (file-attributes current-file))))
 	;; try to apply file settings if available (need to restore buffer-local vars
 	;; before and after since `find-file-noselect-1' resets them).
-	restore-locals
+	(restore-locals)
 	(look-apply-file-settings)
-	restore-locals
+	(restore-locals)
 	;; make sure buffer is associated with original file
 	;; (it could have been changed by `look-file-settings')
 	(set-visited-file-name current-file)
