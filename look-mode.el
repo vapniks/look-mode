@@ -90,12 +90,6 @@
   "View files in a temporary, writeable buffer."
   :prefix "look-"
   :group 'applications)
-(defcustom look-cache-directory
-  (expand-file-name (format "lookmode%d" (user-uid))
-		    temporary-file-directory)
-  "The directory where the cached images will be saved for `image-mode' buffers."
-  :group 'look
-  :type 'directory)
 (defcustom look-skip-file-list '(".zip$")
   "List of regular filename regexps to skip over."
   :group 'look
@@ -137,6 +131,18 @@ page number etc, and will be evaluated when the file is visited again."
 The cached images will be stored in `look-cache-directory'."
   :group 'look
   :type 'boolean)
+(defcustom look-cache-directory
+  (expand-file-name (format "lookmode%d" (user-uid))
+		    temporary-file-directory)
+  "The directory where the cached images will be saved for `image-mode' buffers."
+  :group 'look
+  :type 'directory)
+(defcustom look-cache-directory-size 100000000
+  "The maximum size (in bytes) of the `look-cache-directory'.
+If the total size of files in `look-cache-directory' gets larger thant this number
+then the user will be prompted to remove old files when `look-at-files' is run."
+  :group 'look
+  :type 'integer)
 (defcustom look-default-file-settings
   '((doc-view-mode . (unless doc-view--current-converter-processes
 		       (doc-view-fit-height-to-window)))
@@ -275,10 +281,23 @@ otherwise they replace them."
 			       (generate-new-buffer-name
 				(read-string "Look buffer name: " "*look*:")))))
 		 (list wildcard add name2)))
+  ;; first check the cache directory isn't too full
+  (let ((totalsize (look-get-cache-directory-size)))
+    (if (and (> totalsize look-cache-directory-size)
+	     (y-or-n-p (format "Cache directory is using more than %d bytes! Remove old files? "
+			       look-cache-directory-size)))
+	(let* ((sortedfiles (sort (directory-files-and-attributes look-cache-directory t nil t)
+				  (lambda (a b) (time-less-p (nth 4 (cdr a)) (nth 4 (cdr b)))))))
+	  (cl-loop for (file . attrib) in sortedfiles
+		   with sum = (- totalsize look-cache-directory-size)
+		   if (> sum 0) do (delete-file file)
+		   (setq sum (- sum (nth 7 attrib)))))))
+  ;; load eimp if necessary
   (if (and (string-match (regexp-opt (mapcar 'symbol-name image-types))
 			 look-wildcard)
            (not (featurep 'eimp)))
       (require 'eimp nil t))
+  ;; if no wildcard is supplied match everything with *
   (if (string= look-wildcard "") (setq look-wildcard "*"))
   ;; get look buffer
   (switch-to-buffer (or name (generate-new-buffer-name "*look*")))
@@ -692,6 +711,15 @@ Used by `look-file-settings-templates'."
 Throw an error if it's not."
   (if (not look-mode)
       (error "Current buffer is not a `look-mode' buffer")))
+
+(defun look-get-cache-directory-size nil
+  "Return the amount of space used by files in `look-cache-directory'.
+If `look-cache-directory' doesn't exist, return 0."
+  (if (file-exists-p look-cache-directory)
+      (cl-loop for (file . attrib) in (directory-files-and-attributes
+				       look-cache-directory)
+	       sum (nth 7 attrib))
+    0))
 
 (cl-defun look-get-cache-filename (&optional (filename look-current-file))
   "Return name of cached file corresponding to FILENAME (default `look-current-file')."
