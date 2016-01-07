@@ -809,14 +809,23 @@ Arguments ARG (prefix arg) and NOSAVE are as in `look-at-previous-file' (which s
   (interactive "p")
   (look-apply-to-frame 'look-at-previous-file t arg nosave))
 
-(defun look-empty-cache nil
-  "Empty the `look-cache-directory' directory."
-  (interactive)
-  (if (y-or-n-p "Are you sure you want to delete all files in the cache directory? ")
-      (cl-loop for file in (nthcdr 2 (directory-files look-cache-directory t))
-	       do (if (file-writable-p file)
-		      (delete-file file)
-		    (message "Cannot delete file %s" file)))))
+(defun look-empty-cache (arg)
+  "Empty the `look-cache-directory' directory.
+If called with a prefix ARG then only delete caches of currently looked at files."
+  (interactive "P")
+  (let ((msg (if arg "Are you sure you want to delete cached files? "
+	       "Are you sure you want to delete ALL cached files? ")))
+    (if (y-or-n-p msg)
+	(let ((files (if arg
+			 (if look-mode
+			     (append (reverse look-reverse-file-list)
+				     (if look-current-file (list look-current-file))
+				     look-forward-file-list))
+		       (nthcdr 2 (directory-files look-cache-directory t)))))
+	  (cl-loop for file in (nthcdr 2 (directory-files look-cache-directory t))
+		   do (if (file-writable-p file)
+			  (delete-file file)
+			(message "Cannot delete file %s" file)))))))
 ;;;; subroutines
 (defun look-get-image-mode-info nil
   "Return an sexp for `look-file-settings' for `image-mode' buffers.
