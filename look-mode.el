@@ -344,6 +344,16 @@ Use `look-set-default-file-settings' in a `look-mode' buffer to change the value
 ;;http://lists.gnu.org/archive/html/bug-gnu-emacs/2008-12/msg00195.html
 (defvar-local look-header-overlay (make-overlay (point-min) (point-min))
   "Makes overlay at top of buffer.")
+(defvar look-local-vars '(look-current-file
+			  look-reverse-file-list
+			  look-forward-file-list
+			  look-file-settings
+			  look-user-default-file-settings
+			  look-pwd
+			  look-subdir-list
+			  look-header-overlay)
+  "List of buffer local variables which should be restored when *look* buffer is recreated.")
+
 (defvar look-minor-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map (kbd "C-.") 'look-at-next-file)
@@ -895,25 +905,15 @@ When called interactively reload currently looked at file after deleting its set
 		 :test (lambda (a b) (equal (car a) (car b)))))
   (let ((name (buffer-name))
 	(mode major-mode)
+	(current-file look-current-file)	
 	;; save buffer-local variables
-	(current-file look-current-file)
-	(reverse-list look-reverse-file-list)
-	(forward-list look-forward-file-list)
-	(settings look-file-settings)
-	(user-settings look-user-default-file-settings)
-	(pwd look-pwd)
-	(subdir look-subdir-list)
-	(overlay look-header-overlay))
+	(localvals (cl-loop for var in look-local-vars
+			    collect (eval var))))
     (cl-flet
     	;; restore buffer-local variables
-    	((restore-locals nil (setq look-current-file current-file
-    			       look-reverse-file-list reverse-list
-    			       look-forward-file-list forward-list
-    			       look-file-settings settings
-			       look-user-default-file-settings user-settings
-    			       look-pwd pwd
-    			       look-subdir-list subdir
-    			       look-header-overlay overlay)))
+    	((restore-locals nil
+			 (cl-loop for i from 0 upto (1- (length look-local-vars))
+				  do (set (nth i look-local-vars) (nth i localvals)))))
       ;; set buffer as unmodified for modes that automatically modify the buffer
       ;; so that emacs wont prompt when the buffer is killed
       (if (memq mode '(doc-view-mode pdf-view-mode image-mode))
