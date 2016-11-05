@@ -917,7 +917,7 @@ When called interactively reload currently looked at file after deleting its set
       ;; set buffer as unmodified for modes that automatically modify the buffer
       ;; so that emacs wont prompt when the buffer is killed
       (if (memq mode '(doc-view-mode pdf-view-mode image-mode))
-	  (set-buffer-modified-p nil))
+      	  (set-buffer-modified-p nil))
       (kill-buffer name)		; clear the buffer
       (switch-to-buffer name)		; reopen it
       (if (not current-file)
@@ -936,6 +936,8 @@ When called interactively reload currently looked at file after deleting its set
 	;; make sure buffer is associated with original file
 	;; (it could have been changed by `look-file-settings')
 	(set-visited-file-name current-file)
+	;; make sure buffer isn't marked as modified (so we don't get prompted when moving to the next file)
+	(set-buffer-modified-p nil)
 	(rename-buffer name)
 	(look-update-header-line))
       (look-mode))))
