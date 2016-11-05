@@ -935,9 +935,10 @@ When called interactively reload currently looked at file after deleting its set
 	(restore-locals)
 	;; make sure buffer is associated with original file
 	;; (it could have been changed by `look-file-settings')
-	(set-visited-file-name current-file)
-	;; make sure buffer isn't marked as modified (so we don't get prompted when moving to the next file)
-	(set-buffer-modified-p nil)
+	(unless (string= buffer-file-name current-file)
+	  (set-visited-file-name current-file)
+	  ;; make sure buffer isn't marked as modified (so we don't get prompted when moving to the next file)
+	  (set-buffer-modified-p nil))
 	(rename-buffer name)
 	(look-update-header-line))
       (look-mode))))
