@@ -517,9 +517,9 @@ to `look-file-settings'."
 		    (eq major-mode 'image-mode)
 		    (buffer-modified-p)))
     (unless (file-exists-p look-cache-directory)
-	;; make `look-cache-directory' if it doesn't already exist
-	(doc-view-make-safe-dir
-	 (file-name-as-directory look-cache-directory)))
+      ;; make `look-cache-directory' if it doesn't already exist
+      (doc-view-make-safe-dir
+       (file-name-as-directory look-cache-directory)))
     ;; create the cache file for the current image
     (write-region (eimp-get-image-data) nil
 		  (look-get-cache-filename)))
@@ -531,9 +531,9 @@ to `look-file-settings'."
 	    (item (assoc look-current-file look-file-settings)))
 	(if info
 	    (if item (setcdr item info)
-	      (push (cons look-current-file info) look-file-settings)
-	      (cl-delete-if (lambda (x) (equal (car x) look-current-file))
-			    look-file-settings)))))
+	      (push (cons look-current-file info) look-file-settings))
+	  (cl-delete-if (lambda (x) (equal (car x) look-current-file))
+			look-file-settings))))
   ;; make the next file the current file
   (dotimes (i (or arg 1))
     (if (and look-current-file
@@ -556,9 +556,9 @@ file will be added to `look-file-settings'."
 		    (eq major-mode 'image-mode)
 		    (buffer-modified-p)))
     (unless (file-exists-p look-cache-directory)
-	;; make `look-cache-directory' if it doesn't already exist
-	(doc-view-make-safe-dir
-	 (file-name-as-directory look-cache-directory)))
+      ;; make `look-cache-directory' if it doesn't already exist
+      (doc-view-make-safe-dir
+       (file-name-as-directory look-cache-directory)))
     ;; create the cache file for the current image
     (write-region (eimp-get-image-data) nil
 		  (look-get-cache-filename)))
@@ -570,9 +570,9 @@ file will be added to `look-file-settings'."
 	    (item (assoc look-current-file look-file-settings)))
 	(if info
 	    (if item (setcdr item info)
-	      (push (cons look-current-file info) look-file-settings)
-	      (cl-delete-if (lambda (x) (equal (car x) look-current-file))
-			    look-file-settings)))))
+	      (push (cons look-current-file info) look-file-settings))
+	  (cl-delete-if (lambda (x) (equal (car x) look-current-file))
+			look-file-settings))))
   ;; make the previous file the current file
   (dotimes (i (or arg 1))
     (if (and look-current-file
