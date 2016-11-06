@@ -253,7 +253,10 @@
 			     (pdf-view-goto-page ,(pdf-view-current-page))
 			     (image-next-line ,(window-vscroll))
 			     (set-window-hscroll nil ,(window-hscroll))))
-    (image-mode . (look-get-image-mode-info)))
+    (image-mode . (look-get-image-mode-info))
+    (syslog-mode . `(cl-mapcar 'hide-lines-add-overlay
+			       ',(mapcar 'overlay-start hide-lines-invisible-areas)
+			       ',(mapcar 'overlay-end hide-lines-invisible-areas))))
   "Extra information used by `look-at-this-file' to display files.
 This is a alist whose keys are `major-mode' symbols, and whose
 values are sexps to be evaluated in a `look-mode' buffer for saving
