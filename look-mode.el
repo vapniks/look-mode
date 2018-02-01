@@ -549,6 +549,10 @@ to `look-file-settings'."
     (setq look-current-file (if look-forward-file-list
 				;; get the next file in the list
 				(pop look-forward-file-list))))
+  ;; cancel any timers set by `pdf-view-mode' if necessary, to prevent errors when switching files quickly
+  (if (eq major-mode 'pdf-view-mode)
+      (cancel-function-timers 'pdf-view-check-incompatible-modes))
+  ;; show the file
   (look-at-this-file))
 
 (defun look-at-previous-file (&optional arg nosave)
@@ -588,6 +592,10 @@ file will be added to `look-file-settings'."
     (setq look-current-file (if look-reverse-file-list
 				;; get the previous file in the list
 				(pop look-reverse-file-list))))
+  ;; cancel any timers set by `pdf-view-mode' if necessary, to prevent errors when switching files quickly
+  (if (eq major-mode 'pdf-view-mode)
+      (cancel-function-timers 'pdf-view-check-incompatible-modes))
+  ;; show the file
   (look-at-this-file))
 
 (defun look-remove-this-file nil
